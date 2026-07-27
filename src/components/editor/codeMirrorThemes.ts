@@ -48,9 +48,12 @@ export const idea: Extension = createTheme({
 export { nord };
 
 /**
- * The CodeMirror theme extension(s) for a resolved app theme: `nord` for the dark theme, the `idea`
- * light theme for the sky and light themes. Spread into a plugin's `codeMirrorExtensions`.
+ * The CodeMirror theme extension(s) for a resolved app theme: `nord` for the dark-based themes
+ * (dark and OLED dark), the `idea` light theme for the sky and light themes. Spread into a plugin's
+ * `codeMirrorExtensions`.
  */
-export function codeMirrorThemeExtensions(resolvedTheme: "light" | "sky" | "dark"): Extension[] {
-  return resolvedTheme === "dark" ? [nord] : [idea];
+export function codeMirrorThemeExtensions(
+  resolvedTheme: "light" | "sky" | "dark" | "oled"
+): Extension[] {
+  return resolvedTheme === "dark" || resolvedTheme === "oled" ? [nord] : [idea];
 }

@@ -1,5 +1,5 @@
-import { useEffect, useRef } from "react";
-import { ListTree } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { ListTree, Search, X } from "lucide-react";
 import type { OutlineHeading } from "../../lib/outline";
 import { OUTLINE_WIDTH_MAX_PIXELS, OUTLINE_WIDTH_MIN_PIXELS } from "../../lib/settings";
 
@@ -7,6 +7,8 @@ const UNTITLED_HEADING_LABEL = "(untitled heading)";
 const OUTLINE_WIDTH_KEYBOARD_STEP_PIXELS = 16;
 /** Keep at least this much room for the editor when dragging the outline wider. */
 const MIN_EDITOR_WIDTH_PIXELS = 240;
+/** Under this many headings the outline fits on screen at a glance, so a filter box is just noise. */
+const OUTLINE_FILTER_MIN_HEADINGS = 8;
 
 function clampOutlineWidth(width: number, containerWidth: number) {
   const maxByContainer =
@@ -29,7 +31,30 @@ function OutlineSidebar({
   onResize: (width: number) => void;
 }) {
   const asideRef = useRef<HTMLElement>(null);
-  const listRef = useRef<HTMLElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
+  const [filter, setFilter] = useState("");
+  // Position (within the visible list) of the item holding the list's single tab stop. Null means
+  // "follow the scroll-spy entry" — it only pins once the user has moved focus themselves.
+  const [focusPosition, setFocusPosition] = useState<number | null>(null);
+
+  const showFilter = headings.length >= OUTLINE_FILTER_MIN_HEADINGS;
+  const trimmedFilter = filter.trim().toLowerCase();
+  const isFiltering = showFilter && trimmedFilter !== "";
+
+  const visibleHeadings = useMemo(() => {
+    if (!isFiltering) {
+      return headings;
+    }
+    return headings.filter((heading) => heading.text.toLowerCase().includes(trimmedFilter));
+  }, [headings, isFiltering, trimmedFilter]);
+
+  const activePosition = visibleHeadings.findIndex((heading) => heading.index === activeIndex);
+  // The list is one tab stop (roving tabindex): arrow keys move between entries rather than Tab
+  // walking every heading in the document.
+  const tabPosition = Math.min(
+    Math.max(focusPosition ?? (activePosition >= 0 ? activePosition : 0), 0),
+    Math.max(visibleHeadings.length - 1, 0)
+  );
 
   // Keep the active (scroll-spy) entry visible without scrolling the page or the
   // editor: nudge only the outline list when the highlighted item drifts out of view.
@@ -51,7 +76,62 @@ function OutlineSidebar({
     } else if (itemRect.bottom > listRect.bottom) {
       list.scrollTop += itemRect.bottom - listRect.bottom + 8;
     }
-  }, [activeIndex, headings]);
+  }, [activeIndex, headings, visibleHeadings]);
+
+  const focusItemAt = (position: number) => {
+    if (visibleHeadings.length === 0) {
+      return;
+    }
+
+    const clamped = Math.max(0, Math.min(visibleHeadings.length - 1, position));
+    setFocusPosition(clamped);
+    const items = listRef.current?.querySelectorAll<HTMLButtonElement>(".nexus-outline-item");
+    items?.[clamped]?.focus();
+  };
+
+  const handleListKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    switch (event.key) {
+      case "ArrowDown":
+        event.preventDefault();
+        focusItemAt(tabPosition + 1);
+        break;
+      case "ArrowUp":
+        event.preventDefault();
+        focusItemAt(tabPosition - 1);
+        break;
+      case "Home":
+        event.preventDefault();
+        focusItemAt(0);
+        break;
+      case "End":
+        event.preventDefault();
+        focusItemAt(visibleHeadings.length - 1);
+        break;
+      default:
+        break;
+    }
+  };
+
+  const clearFilter = () => {
+    setFilter("");
+    setFocusPosition(null);
+  };
+
+  const handleFilterKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === "ArrowDown") {
+      // Straight from typing into the results, without a Tab detour.
+      event.preventDefault();
+      focusItemAt(0);
+      return;
+    }
+
+    if (event.key === "Escape" && filter !== "") {
+      // Clear the filter rather than letting Escape bubble out to the editor.
+      event.preventDefault();
+      event.stopPropagation();
+      clearFilter();
+    }
+  };
 
   const handleResizePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
     if (event.button !== 0) {
@@ -108,32 +188,90 @@ function OutlineSidebar({
       <div className="nexus-outline-header">
         <ListTree aria-hidden="true" className="nexus-outline-header-icon" />
         <span className="nexus-outline-title">Outline</span>
+        {headings.length > 0 && (
+          <span className="nexus-outline-count">
+            {isFiltering ? `${visibleHeadings.length}/${headings.length}` : headings.length}
+          </span>
+        )}
       </div>
+
+      {showFilter && (
+        <div className="nexus-outline-filter">
+          <Search aria-hidden="true" className="nexus-outline-filter-icon" />
+          <input
+            className="nexus-outline-filter-input"
+            type="text"
+            value={filter}
+            placeholder="Filter headings"
+            aria-label="Filter headings"
+            autoComplete="off"
+            spellCheck={false}
+            onChange={(event) => {
+              setFilter(event.target.value);
+              setFocusPosition(null);
+            }}
+            onKeyDown={handleFilterKeyDown}
+          />
+          {filter !== "" && (
+            <button
+              type="button"
+              className="nexus-outline-filter-clear"
+              aria-label="Clear heading filter"
+              onClick={clearFilter}
+            >
+              <X aria-hidden="true" />
+            </button>
+          )}
+        </div>
+      )}
+
       {headings.length === 0 ? (
-        <p className="nexus-outline-empty">No headings yet</p>
+        <p className="nexus-outline-empty">
+          No headings yet
+          <span>Headings you add appear here as a clickable outline.</span>
+        </p>
+      ) : visibleHeadings.length === 0 ? (
+        <p className="nexus-outline-empty">
+          No matches
+          <span>No heading contains “{filter.trim()}”.</span>
+        </p>
       ) : (
-        <nav className="nexus-outline-list" ref={listRef}>
-          {headings.map((heading) => {
+        <div
+          className="nexus-outline-list"
+          ref={listRef}
+          role="tree"
+          aria-label="Document headings"
+          onKeyDown={handleListKeyDown}
+        >
+          {visibleHeadings.map((heading, position) => {
             const label = heading.text || UNTITLED_HEADING_LABEL;
             const isActive = heading.index === activeIndex;
             return (
               <button
                 key={heading.index}
                 type="button"
+                role="treeitem"
+                aria-level={heading.level}
+                aria-selected={isActive}
+                tabIndex={position === tabPosition ? 0 : -1}
                 className={`nexus-outline-item nexus-outline-item-level-${heading.level}${
                   isActive ? " nexus-outline-item-active" : ""
                 }`}
-                style={{ paddingInlineStart: `${(heading.level - 1) * 0.85 + 0.55}rem` }}
+                // Indent guides are drawn from the depth (see .nexus-outline-item). A filtered list
+                // is no longer a contiguous tree, so it renders flat rather than implying a
+                // hierarchy whose parents are hidden.
+                style={{ "--outline-depth": isFiltering ? 0 : heading.level - 1 } as React.CSSProperties}
                 onClick={() => onSelect(heading)}
-                aria-current={isActive ? "true" : undefined}
+                onFocus={() => setFocusPosition(position)}
                 title={label}
               >
-                {label}
+                <span className="nexus-outline-item-label">{label}</span>
               </button>
             );
           })}
-        </nav>
+        </div>
       )}
+
       <div
         className="nexus-outline-resizer"
         role="separator"

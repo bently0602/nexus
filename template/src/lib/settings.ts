@@ -18,11 +18,40 @@ export const APP_FONT_OPTIONS = [
   { label: "Courier New", value: '"Courier New", monospace' }
 ] as const;
 
+/* `swatches` are [app background, work surface, accent] samples of each theme's tokens, drawn as a
+   three-band chip in the Settings theme picker. Keep them in step with the token blocks in
+   `src/styles.css` when retheming. */
 export const APP_THEME_OPTIONS = [
-  { label: "System", value: "system" },
-  { label: "Light", value: "light" },
-  { label: "Sky", value: "sky" },
-  { label: "Dark", value: "dark" }
+  {
+    label: "System",
+    value: "system",
+    description: "Follow your operating system appearance.",
+    swatches: ["#e9eef7", "#ffffff", "#1b1e23"]
+  },
+  {
+    label: "Light",
+    value: "light",
+    description: "A clean, neutral workspace.",
+    swatches: ["#f0f0f1", "#ffffff", "#185abd"]
+  },
+  {
+    label: "Sky",
+    value: "sky",
+    description: "The signature cool blue theme.",
+    swatches: ["#e9eef7", "#ffffff", "#185abd"]
+  },
+  {
+    label: "Dark",
+    value: "dark",
+    description: "A low-light workspace.",
+    swatches: ["#1b1e23", "#2b2f36", "#4d8fe0"]
+  },
+  {
+    label: "OLED Dark",
+    value: "oled",
+    description: "True-black surfaces for OLED displays.",
+    swatches: ["#000000", "#0a0a0a", "#68a7ff"]
+  }
 ] as const;
 
 export type AppFontFamily = (typeof APP_FONT_OPTIONS)[number]["value"];

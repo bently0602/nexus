@@ -20,6 +20,7 @@ import { Workflow } from "lucide-react";
 import { $createDrawioImageNode } from "./DrawioImageNode";
 import { $createIsoflowImageNode } from "./IsoflowImageNode";
 import { createEmptySqlSchema, SQL_SCHEMA_BLOCK_LANGUAGE, SQL_SCHEMA_BLOCK_META, serializeSqlSchema } from "../../lib/sqlSchema";
+import { currentHostTheme } from "../../lib/theme";
 
 const MERMAID_TEMPLATE = "flowchart TD\n  A[Start] --> B[Finish]";
 
@@ -132,7 +133,7 @@ function InsertDiagram() {
     const targetEditor = realm.getValue(activeEditor$) ?? rootEditor;
     if (!rootEditor || !targetEditor) return;
     const savedSelection = captureDiagramSelection(targetEditor);
-    const result = await bridge.editSqlSchema({ schema: serializeSqlSchema(createEmptySqlSchema()), theme: document.documentElement.dataset.theme === "dark" ? "dark" : "light" });
+    const result = await bridge.editSqlSchema({ schema: serializeSqlSchema(createEmptySqlSchema()), theme: currentHostTheme() });
     if (result.canceled) return;
     targetEditor.update(() => { restoreDiagramSelection(savedSelection); $insertNodes([$createCodeBlockNode({ code: result.schema, language: SQL_SCHEMA_BLOCK_LANGUAGE, meta: SQL_SCHEMA_BLOCK_META })]); }, { discrete: true });
     if (targetEditor !== rootEditor) targetEditor.dispatchCommand(NESTED_EDITOR_UPDATED_COMMAND, undefined);

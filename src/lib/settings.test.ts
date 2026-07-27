@@ -67,6 +67,7 @@ describe("settings helpers", () => {
       showInvisibleCharacters: false,
       spellCheckEnabled: true,
       diagramsAsFiles: false,
+      autoShowDiffOnExternalChange: true,
       pageSize: DEFAULT_EDITOR_PAGE_SIZE,
       pageOrientation: DEFAULT_EDITOR_PAGE_ORIENTATION,
       pageMargins: {
@@ -130,6 +131,7 @@ describe("settings helpers", () => {
       showInvisibleCharacters: false,
       spellCheckEnabled: true,
       diagramsAsFiles: false,
+      autoShowDiffOnExternalChange: true,
       pageSize: "Letter",
       pageOrientation: "portrait",
       pageMargins: {
@@ -192,7 +194,8 @@ describe("settings helpers", () => {
       "system",
       "light",
       "sky",
-      "dark"
+      "dark",
+      "oled"
     ]);
 
     EDITOR_THEME_OPTIONS.forEach((option) => {
@@ -360,6 +363,20 @@ describe("settings helpers", () => {
       [getSettingsStorageKey("default")]: JSON.stringify({ diagramsAsFiles: true })
     });
     expect(loadSettings("default").diagramsAsFiles).toBe(true);
+  });
+
+  it("defaults auto-diff-on-external-change to on, but honors an explicit false", () => {
+    expect(createDefaultSettings().autoShowDiffOnExternalChange).toBe(true);
+
+    installLocalStorage({
+      [getSettingsStorageKey("default")]: JSON.stringify({ fontFamily: DEFAULT_EDITOR_FONT_FAMILY })
+    });
+    expect(loadSettings("default").autoShowDiffOnExternalChange).toBe(true);
+
+    installLocalStorage({
+      [getSettingsStorageKey("default")]: JSON.stringify({ autoShowDiffOnExternalChange: false })
+    });
+    expect(loadSettings("default").autoShowDiffOnExternalChange).toBe(false);
   });
 
   it("loads a saved enabled outline sidebar setting", () => {
@@ -796,6 +813,7 @@ describe("settings helpers", () => {
       showInvisibleCharacters: false,
       spellCheckEnabled: true,
       diagramsAsFiles: false,
+      autoShowDiffOnExternalChange: true,
       pageSize: "A4",
       pageOrientation: "landscape",
       pageMargins: {
@@ -845,6 +863,7 @@ describe("settings helpers", () => {
         showInvisibleCharacters: false,
         spellCheckEnabled: true,
         diagramsAsFiles: false,
+        autoShowDiffOnExternalChange: true,
         pageSize: "A4",
         pageOrientation: "landscape",
         pageMargins: {

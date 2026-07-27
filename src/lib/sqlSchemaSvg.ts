@@ -66,7 +66,7 @@ function renderTable(table: SqlSchemaTable, box: ReturnType<typeof tableBox>) {
     : "";
   const rows = table.columns.map((column, index) => {
     const y = box.y + rowStart(table) + index * ROW_HEIGHT;
-    const badges = [column.primaryKey ? "PK" : "", column.unique && !column.primaryKey ? "UQ" : ""].filter(Boolean).join(" ");
+    const badges = [column.primaryKey ? "PK" : "", column.unique && !column.primaryKey ? "UQ" : "", column.identity ? "ID" : ""].filter(Boolean).join(" ");
     return `<g><title>${escapeXml(column.description || `${column.name}: ${column.type}`)}</title><line x1="${box.x}" y1="${y}" x2="${box.x + TABLE_WIDTH}" y2="${y}" stroke="#e2e8f0"/><text x="${box.x + 12}" y="${y + 20}" font-family="ui-monospace,monospace" font-size="12" font-weight="600" fill="#0f172a">${escapeXml(trimText(column.name, 20))}</text><text x="${box.x + 152}" y="${y + 20}" font-family="ui-monospace,monospace" font-size="11" fill="#64748b">${escapeXml(trimText(column.type, 15))}</text>${badges ? `<text x="${box.x + 267}" y="${y + 20}" text-anchor="end" font-family="sans-serif" font-size="9" font-weight="700" fill="#475569">${badges}</text>` : ""}</g>`;
   }).join("");
   return `<g><rect x="${box.x}" y="${box.y}" width="${box.width}" height="${box.height}" rx="8" fill="#fff" stroke="#94a3b8"/><path d="M${box.x + 8} ${box.y}H${box.x + box.width - 8}Q${box.x + box.width} ${box.y} ${box.x + box.width} ${box.y + 8}V${box.y + HEADER_HEIGHT}H${box.x}V${box.y + 8}Q${box.x} ${box.y} ${box.x + 8} ${box.y}" fill="${escapeXml(table.color)}"/><text x="${box.x + 14}" y="${box.y + 27}" font-family="sans-serif" font-size="15" font-weight="700" fill="#fff">${escapeXml(trimText(table.name, 28))}</text>${description}${rows}</g>`;

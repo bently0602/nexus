@@ -14,14 +14,24 @@ import Showcase from "./components/showcase/Showcase";
 import SettingsDialog from "./components/settings/SettingsDialog";
 import AboutDialog from "./components/about/AboutDialog";
 
-type ResolvedTheme = "light" | "sky" | "dark";
+type ResolvedTheme = "light" | "sky" | "dark" | "oled";
+
+/** The dark-based themes: OLED shares every dark treatment and differs only in its tokens. */
+function isDarkTheme(resolvedTheme: ResolvedTheme) {
+  return resolvedTheme === "dark" || resolvedTheme === "oled";
+}
 
 const MIN_ZOOM_PERCENT = 50;
 const MAX_ZOOM_PERCENT = 200;
 const ZOOM_STEP_PERCENT = 10;
 
 function resolveThemePreference(themePreference: AppThemePreference): ResolvedTheme {
-  if (themePreference === "light" || themePreference === "sky" || themePreference === "dark") {
+  if (
+    themePreference === "light" ||
+    themePreference === "sky" ||
+    themePreference === "dark" ||
+    themePreference === "oled"
+  ) {
     return themePreference;
   }
 
@@ -84,7 +94,7 @@ function App() {
   // Apply the resolved theme to the document root (CSS reads [data-theme]).
   useEffect(() => {
     document.documentElement.dataset.theme = resolvedTheme;
-    document.documentElement.style.colorScheme = resolvedTheme === "dark" ? "dark" : "light";
+    document.documentElement.style.colorScheme = isDarkTheme(resolvedTheme) ? "dark" : "light";
     return () => {
       delete document.documentElement.dataset.theme;
       document.documentElement.style.colorScheme = "";

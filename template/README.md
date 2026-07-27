@@ -6,7 +6,9 @@ a status bar, themed dialogs, and a component showcase — ready to copy out and
 
 ## What's included
 
-- **Three themes** — Sky (default), Light, and Dark, plus a "System" preference that follows the OS.
+- **Four themes** — Sky (default), Light, Dark, and OLED Dark, plus a "System" preference that
+  follows the OS. OLED Dark is expressed as a delta on top of Dark, so component rules that need the
+  dark treatment are scoped `:is([data-theme="dark"], [data-theme="oled"])` to match both.
   Everything is driven by CSS variables in [`src/styles.css`](src/styles.css), so retheming means
   editing the token blocks at the top.
 - **Design-system components** ([`src/components/ui`](src/components/ui)) — `Button` (default /

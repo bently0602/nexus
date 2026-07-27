@@ -1,11 +1,14 @@
 /*
- * Theme tokens for three looks, selected via [data-theme] on :root:
+ * Theme tokens for four looks, selected via [data-theme] on :root:
  *   • Sky (the bare :root defaults below) — "Office 2010, modernized": blue-tinted
  *     chrome, gold hover / amber pressed states, rendered flat (tinted fills instead of
  *     glass gradients, hairline borders, 6-10px radii, soft elevation shadows).
  *   • Light ([data-theme="light"]) — a true neutral variant: white surfaces,
  *     light-gray chrome, gray hovers, and a single blue accent.
  *   • Dark ([data-theme="dark"]).
+ *   • OLED Dark ([data-theme="oled"]) — Dark with true-black surfaces. It is written
+ *     as a delta on top of Dark, so any component rule needing the dark treatment
+ *     should be scoped :is([data-theme="dark"], [data-theme="oled"]) to match both.
  *
  * Every component is styled from these CSS variables, so retheming is a matter of editing
  * the token blocks below. The class prefix is `nexus-` (inherited from the source design
@@ -75,7 +78,6 @@
   --ribbon-checked-grad: rgba(245, 185, 60, 0.24);
   --hover-ink: #3c2e08;
   --hover-muted: rgba(60, 46, 8, 0.62);
-  --gold-bar: #d99e1b;
   /* Status bar */
   --statusbar-grad: #eef2f9;
   --statusbar-border: rgba(70, 95, 130, 0.22);
@@ -147,7 +149,6 @@
   --ribbon-checked-grad: rgba(24, 90, 189, 0.14);
   --hover-ink: #1f2225;
   --hover-muted: rgba(31, 34, 37, 0.62);
-  --gold-bar: #185abd;
   --statusbar-grad: #f0f0f1;
   --statusbar-border: rgba(0, 0, 0, 0.12);
   --btn-border: rgba(0, 0, 0, 0.18);
@@ -217,7 +218,6 @@
   --ribbon-checked-grad: rgba(245, 190, 80, 0.2);
   --hover-ink: #f8ecca;
   --hover-muted: rgba(248, 236, 202, 0.65);
-  --gold-bar: #f2c75c;
   --statusbar-grad: #22252b;
   --statusbar-border: rgba(255, 255, 255, 0.1);
   --btn-grad: #343a44;
@@ -236,6 +236,91 @@
   --caption-active: rgba(255, 255, 255, 0.13);
   --slider-track: rgba(255, 255, 255, 0.2);
   --slider-tick: rgba(255, 255, 255, 0.38);
+}
+
+/*
+ * OLED Dark — the deltas from Dark above. Every surface Dark tints
+ * (#1b1e23 … #343a44) goes to true black or near-black so an OLED panel can
+ * switch those pixels off, hairlines get a little stronger to stay legible
+ * against black, and Dark's amber hover/pressed family is replaced by a
+ * brighter blue (#68a7ff) that reads better on a black field. Tokens not
+ * listed here keep their Dark value. Any component rule that needs the dark
+ * treatment should be scoped :is([data-theme="dark"], [data-theme="oled"]).
+ */
+:root[data-theme="oled"] {
+  color: #eef1f5;
+  background: #000000;
+  /* Surfaces */
+  --ink: #eef1f5;
+  --muted: #aab3c0;
+  --app-bg: #000000;
+  --surface: #000000;
+  --surface-muted: #0d0f12;
+  --paper: #000000;
+  --toolbar: #070707;
+  --ribbon-grad: #050505;
+  --chrome-grad: #050505;
+  --statusbar-grad: #050505;
+  --menu-bg: #0a0a0a;
+  --dialog-bg: #0a0a0a;
+  --btn-grad: #121418;
+  --btn-hover-grad: #1b1e23;
+  --btn-active-grad: #0a0b0d;
+  --btn-text: #eef1f5;
+  /* Text on chrome */
+  --chrome-text: #d7dde5;
+  --ribbon-group-label: #b3bcc8;
+  --toolbar-icon: #d7dde5;
+  /* Hairlines — a touch stronger than Dark's so edges survive on black */
+  --line: rgba(255, 255, 255, 0.13);
+  --chrome-border: rgba(255, 255, 255, 0.13);
+  --ribbon-border: rgba(255, 255, 255, 0.13);
+  --ribbon-sep: rgba(255, 255, 255, 0.13);
+  --statusbar-border: rgba(255, 255, 255, 0.13);
+  --dialog-border: rgba(255, 255, 255, 0.14);
+  --menu-border: rgba(255, 255, 255, 0.15);
+  --btn-border: rgba(255, 255, 255, 0.18);
+  --input-border: rgba(255, 255, 255, 0.24);
+  /* Accent + interaction: blue everywhere Dark uses amber */
+  --accent: #68a7ff;
+  --accent-strong: #8bbcff;
+  /* This accent is bright enough that white text on it only reaches ~2.5:1; dark ink gets ~7:1.
+     Every --on-accent use sits on a --accent fill, so flipping it here is safe. */
+  --on-accent: #06182e;
+  --input-focus: #68a7ff;
+  --focus-ring: rgba(104, 167, 255, 0.32);
+  --focus-ring-strong: rgba(104, 167, 255, 0.65);
+  --toolbar-hover: rgba(104, 167, 255, 0.16);
+  --toolbar-active: rgba(104, 167, 255, 0.28);
+  --toolbar-icon-active: #9bc5ff;
+  --ribbon-hover-grad: rgba(104, 167, 255, 0.16);
+  --ribbon-active-grad: rgba(104, 167, 255, 0.28);
+  --ribbon-active-border: rgba(155, 197, 255, 0.52);
+  --ribbon-checked-grad: rgba(104, 167, 255, 0.22);
+  --option-highlight: rgba(104, 167, 255, 0.16);
+  --selected-border: rgba(155, 197, 255, 0.52);
+  --hover-ink: #ffffff;
+  --hover-muted: rgba(255, 255, 255, 0.7);
+  --tab-hover-bg: rgba(255, 255, 255, 0.08);
+  --tab-open-grad: rgba(104, 167, 255, 0.2);
+  --tab-open-text: #acd0ff;
+  --caption-hover: rgba(255, 255, 255, 0.1);
+  --caption-active: rgba(255, 255, 255, 0.16);
+  --scrollbar-thumb: rgba(235, 241, 248, 0.28);
+  --slider-track: rgba(255, 255, 255, 0.22);
+  --slider-tick: rgba(255, 255, 255, 0.42);
+  /* Elevation — the page ring carries the surface edge now that it is black,
+     and overlays sit deeper so modals separate from the field. */
+  --paper-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.12),
+    0 2px 6px rgba(0, 0, 0, 0.6),
+    0 18px 44px rgba(0, 0, 0, 0.55);
+  --toolbar-shadow: rgba(0, 0, 0, 0.6);
+  --floating-shadow: 0 6px 20px rgba(0, 0, 0, 0.65);
+  --dialog-shadow: 0 16px 50px rgba(0, 0, 0, 0.75);
+  --popup-shadow: 0 10px 30px rgba(0, 0, 0, 0.72);
+  --context-shadow: 0 10px 30px rgba(0, 0, 0, 0.72);
+  --overlay: rgba(0, 0, 0, 0.68);
 }
 
 * {
@@ -739,6 +824,72 @@ button:active {
   justify-content: flex-end;
 }
 
+/* ── About dialog ────────────────────────────────────────────────────────
+ * The shared "product card": an optional app icon beside an organization
+ * eyebrow, wordmark and tagline, over a hairline footer bar carrying the
+ * copyright. The overrides of .nexus-dialog-title/-description/-footer rely
+ * on source order, so this block must stay below them. */
+.nexus-about-dialog {
+  gap: 0;
+  grid-template-rows: minmax(0, 1fr) auto;
+  padding: 0;
+  width: min(24rem, calc(100vw - 2rem));
+}
+
+.nexus-about-content {
+  align-items: center;
+  display: flex;
+  gap: 1.15rem;
+  min-height: 0;
+  /* Extra top padding keeps the eyebrow clear of the absolutely positioned close button. */
+  padding: 1.75rem 1.5rem 1.25rem;
+}
+
+.nexus-about-icon {
+  flex: none;
+  height: 88px;
+  object-fit: contain;
+  width: 88px;
+}
+
+.nexus-about-copy {
+  min-width: 0;
+}
+
+.nexus-about-organization {
+  color: var(--accent);
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  margin: 0 0 0.18rem;
+  text-transform: uppercase;
+}
+
+.nexus-about-title {
+  font-size: 1.65rem;
+  font-weight: 600;
+  line-height: 1.15;
+}
+
+.nexus-about-description {
+  font-size: 0.78rem;
+  line-height: 1.4;
+  margin: 0.3rem 0 0;
+}
+
+.nexus-about-footer {
+  align-items: center;
+  border-top: 1px solid var(--line);
+  justify-content: space-between;
+  min-height: 44px;
+  padding: 0.5rem 1.5rem;
+}
+
+.nexus-about-copyright {
+  color: var(--muted);
+  font-size: 0.68rem;
+}
+
 .nexus-dialog-close {
   background: transparent;
   border-color: transparent;
@@ -772,9 +923,127 @@ button:active {
   scrollbar-gutter: stable;
 }
 
+/* Hairline-separated groups with an accent eyebrow heading. */
+.nexus-settings-section {
+  border-top: 1px solid var(--line);
+  display: grid;
+  gap: 0.55rem;
+  margin-top: 0.15rem;
+  padding-top: 0.95rem;
+}
+
+.nexus-settings-section:first-child {
+  border-top: 0;
+  margin-top: 0;
+  padding-top: 0;
+}
+
+.nexus-settings-eyebrow {
+  color: var(--accent);
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  margin: 0;
+  text-transform: uppercase;
+}
+
+.nexus-settings-section-help {
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.45;
+  margin: -0.25rem 0 0.1rem;
+}
+
 .nexus-settings-field {
   display: grid;
   gap: 0.35rem;
+}
+
+/* Theme picker: swatch chip + copy + check, as cards rather than a select. */
+.nexus-settings-theme-options {
+  display: grid;
+  gap: 0.55rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.nexus-settings-theme-option {
+  align-items: center;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  color: var(--ink);
+  cursor: default;
+  display: grid;
+  font: inherit;
+  gap: 0.65rem;
+  grid-template-columns: 36px minmax(0, 1fr) 18px;
+  min-height: 72px;
+  padding: 0.65rem;
+  text-align: left;
+  transition:
+    background 100ms ease,
+    border-color 100ms ease,
+    box-shadow 100ms ease;
+}
+
+.nexus-settings-theme-option:hover {
+  background: var(--toolbar-hover);
+  border-color: var(--accent);
+}
+
+.nexus-settings-theme-option[data-selected] {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+.nexus-settings-theme-option:focus-visible {
+  outline: 2px solid var(--focus-ring-strong);
+  outline-offset: 2px;
+}
+
+.nexus-settings-theme-preview {
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  box-shadow: 0 2px 5px rgba(20, 35, 60, 0.12);
+  display: flex;
+  height: 36px;
+  overflow: hidden;
+  width: 36px;
+}
+
+.nexus-settings-theme-preview span {
+  flex: 1;
+}
+
+.nexus-settings-theme-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.nexus-settings-theme-copy strong {
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.nexus-settings-theme-copy small {
+  color: var(--muted);
+  font-size: 0.68rem;
+  line-height: 1.3;
+}
+
+.nexus-settings-theme-check {
+  align-items: center;
+  color: var(--accent);
+  display: inline-flex;
+  justify-content: center;
+}
+
+.nexus-settings-theme-check svg {
+  height: 16px;
+  stroke-width: 2.5;
+  width: 16px;
 }
 
 .nexus-settings-field-row {
@@ -826,8 +1095,15 @@ button:active {
   padding: 0.75rem;
 }
 
+/* Pins a secondary action (Reset defaults) hard left and keeps the rest right. Deliberately not
+   `space-between`: that collapses a *single*-child footer to the left edge, so a one-button footer
+   would sit opposite every other dialog's. Pushing only a first-of-several child handles both. */
 .nexus-settings-footer {
-  justify-content: space-between;
+  justify-content: flex-end;
+}
+
+.nexus-settings-footer > :first-child:not(:last-child) {
+  margin-inline-end: auto;
 }
 
 /* ── Status bar (status text left, zoom slider right) ────────────────── */

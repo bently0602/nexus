@@ -37,6 +37,12 @@ import {
   saveSettings
 } from "./lib/settings";
 import type { EditorThemePreference } from "./lib/settings";
+import { isDarkTheme, type ResolvedTheme } from "./lib/theme";
+import {
+  createExternalFileChangeCoalescer,
+  resolveExternalDiffBaseline,
+  type ExternalDiffBaseline
+} from "./lib/externalFileChange";
 import type {
   AiSelectionMenuPayload,
   McpEditorSelection,
@@ -47,6 +53,7 @@ import AboutDialog from "./components/about/AboutDialog";
 import EditorContextMenu from "./components/editor/EditorContextMenu";
 import FindTextPanel from "./components/editor/FindTextPanel";
 import FileChangedDialog from "./components/editor/FileChangedDialog";
+import FileReloadedNoticeDialog from "./components/editor/FileReloadedNoticeDialog";
 import ExportProgressDialog from "./components/editor/ExportProgressDialog";
 import PrintPreviewDialog from "./components/editor/PrintPreviewDialog";
 import { listExitPlugin } from "./components/editor/ListExitPlugin";
@@ -119,6 +126,15 @@ const MCP_WINDOW_ID = (() => {
 const EDITOR_ZOOM_STEP_PERCENT = 10;
 const MIN_EDITOR_ZOOM_PERCENT = 50;
 const MAX_EDITOR_ZOOM_PERCENT = 200;
+/**
+ * Trailing window for coalescing watched-file changes. A coding harness editing a document usually
+ * writes several times in quick succession, and every write would otherwise run a full reload —
+ * which re-imports the Markdown and replaces the whole document in each diff pane. Overlapping
+ * reloads are what make the diff panes visibly judder. Only the last write's disk state matters, so
+ * collapse a burst into one reload. Long enough to catch a multi-edit run, short enough that a lone
+ * save still feels immediate.
+ */
+const EXTERNAL_FILE_CHANGE_COALESCE_MS = 200;
 const EDITOR_SCROLL_SELECTORS = [
   ".mdxeditor-source-editor .cm-scroller",
   ".mdxeditor-diff-editor .cm-scroller",
@@ -145,7 +161,6 @@ type ProgrammaticMarkdownChange = {
   targetMarkdown: string;
 };
 
-type ResolvedTheme = "light" | "sky" | "dark";
 
 function getDocumentName(filePath: string) {
   const parts = filePath.split(/[\\/]/);
@@ -411,7 +426,12 @@ function getRangeElement(range: Range) {
 }
 
 function resolveThemePreference(themePreference: EditorThemePreference): ResolvedTheme {
-  if (themePreference === "light" || themePreference === "sky" || themePreference === "dark") {
+  if (
+    themePreference === "light" ||
+    themePreference === "sky" ||
+    themePreference === "dark" ||
+    themePreference === "oled"
+  ) {
     return themePreference;
   }
 
@@ -449,6 +469,10 @@ function App() {
   const [lastSavedMarkdown, setLastSavedMarkdown] = useState(initialDraft.markdown);
   const [previousVersionMarkdown, setPreviousVersionMarkdown] = useState<string | undefined>();
   const [diffMarkdown, setDiffMarkdown] = useState("");
+  // The baseline for an in-progress run of external edits, pinned to the file it was taken from.
+  // See reloadExternalChangeIntoDiff: re-taking it on every write both churns the diff panes and
+  // throws away the earlier edits. Cleared when the diff view closes or the document is replaced.
+  const externalDiffBaselineRef = useRef<ExternalDiffBaseline | null>(null);
   const [pendingDiffViewRequest, setPendingDiffViewRequest] = useState(0);
   const [pendingFindRequest, setPendingFindRequest] = useState(0);
   const [pendingReplaceRequest, setPendingReplaceRequest] = useState(0);
@@ -479,6 +503,9 @@ function App() {
   const [mcpNgrokStatus, setMcpNgrokStatus] = useState<McpNgrokStatus | null>(null);
   const [externalFileChangePrompt, setExternalFileChangePrompt] =
     useState<ExternalFileChangePrompt | null>(null);
+  const [externalFileReloadedNotice, setExternalFileReloadedNotice] = useState<{
+    filePath: string;
+  } | null>(null);
   const [pendingMcpWrite, setPendingMcpWrite] = useState<
     { requestId: string; markdown: string; clientLabel: string } | null
   >(null);
@@ -1006,8 +1033,8 @@ function App() {
 
   useEffect(() => {
     document.documentElement.dataset.theme = resolvedTheme;
-    // Sky is a light-based theme; only dark maps to the dark color-scheme keyword.
-    document.documentElement.style.colorScheme = resolvedTheme === "dark" ? "dark" : "light";
+    // Sky is a light-based theme; only the dark-based themes map to the dark color-scheme keyword.
+    document.documentElement.style.colorScheme = isDarkTheme(resolvedTheme) ? "dark" : "light";
 
     return () => {
       delete document.documentElement.dataset.theme;
@@ -1461,10 +1488,31 @@ function App() {
       }
     }
 
-    return window.nexus.onExternalFileChange((event) => {
-      void showExternalFileChangePrompt(event);
+    // Collapse a burst of writes into a single reload — see EXTERNAL_FILE_CHANGE_COALESCE_MS.
+    const coalescer = createExternalFileChangeCoalescer(
+      EXTERNAL_FILE_CHANGE_COALESCE_MS,
+      (event) => {
+        void showExternalFileChangePrompt(event);
+      }
+    );
+
+    const unsubscribe = window.nexus.onExternalFileChange((event) => {
+      coalescer.push(event);
     });
+
+    return () => {
+      coalescer.cancel();
+      unsubscribe();
+    };
   }, []);
+
+  // Leaving the diff view ends the run of external edits being reviewed, so the next one starts from
+  // a fresh baseline rather than diffing against content the user has already seen and moved past.
+  useEffect(() => {
+    if (editorViewMode !== "diff") {
+      externalDiffBaselineRef.current = null;
+    }
+  }, [editorViewMode]);
 
   function requestDiffView(nextDiffMarkdown: string) {
     setDiffMarkdown(nextDiffMarkdown);
@@ -1485,20 +1533,46 @@ function App() {
   // disk content is normalized by loadDocument), so a coding-harness rewrite that only differs in raw
   // Markdown style — `-` vs `*` bullets, `_x_` vs `*x*`, blank-line padding — collapses to nothing and
   // only the real edits show. The editor lands on the new content so editing continues on top of it.
+  //
+  // The baseline is taken once per run of external edits, not once per edit. Re-taking it would make
+  // the diff show only the most recent write (silently dropping the earlier ones from view) and would
+  // replace the whole left-hand document on every write, which is half of the diff-pane judder.
   async function reloadExternalChangeIntoDiff(diskMarkdown: string, changedFilePath: string) {
-    const previousMarkdown = getCurrentMarkdown();
+    const baseline = resolveExternalDiffBaseline(
+      externalDiffBaselineRef.current,
+      changedFilePath,
+      getCurrentMarkdown(),
+      areFilePathsEquivalent
+    );
+    externalDiffBaselineRef.current = baseline;
+
     setExternalFileChangePrompt(null);
-    await loadDocument(diskMarkdown, changedFilePath, { previousVersionMarkdown: previousMarkdown });
-    requestDiffView(previousMarkdown);
+    await loadDocument(diskMarkdown, changedFilePath, {
+      previousVersionMarkdown: baseline.markdown
+    });
+    requestDiffView(baseline.markdown);
+  }
+
+  // Same reload as above, but for when auto-diff is turned off: land on the new content and tell the
+  // user it happened instead of dropping them into a diff view.
+  async function reloadExternalChangeWithNotice(diskMarkdown: string, changedFilePath: string) {
+    setExternalFileChangePrompt(null);
+    await loadDocument(diskMarkdown, changedFilePath);
+    setExternalFileReloadedNotice({ filePath: changedFilePath });
   }
 
   // A watched file changed on disk. With no unsaved edits (the common "let the harness edit while I
-  // watch" case) there is no conflict, so skip the dialog entirely: auto-reload and drop straight into
-  // the clean diff. Unsaved edits mean a genuine conflict — fall back to the dialog so nothing is lost.
+  // watch" case) there is no conflict, so skip the dialog entirely and auto-reload. Whether that lands
+  // on a diff view or a plain notice is controlled by the "auto show diff" setting. Unsaved edits mean
+  // a genuine conflict — fall back to the dialog so nothing is lost.
   function handleExternalFileChanged(changedFilePath: string, diskMarkdown: string, timestamp: number) {
     const currentIsDirty = hasUnsavedMarkdownChanges(getCurrentMarkdown(), lastSavedMarkdown);
     if (!currentIsDirty) {
-      void reloadExternalChangeIntoDiff(diskMarkdown, changedFilePath);
+      if (settings.autoShowDiffOnExternalChange) {
+        void reloadExternalChangeIntoDiff(diskMarkdown, changedFilePath);
+      } else {
+        void reloadExternalChangeWithNotice(diskMarkdown, changedFilePath);
+      }
       return;
     }
     setExternalFileChangePrompt({
@@ -1693,6 +1767,7 @@ function App() {
   function clearDocument() {
     // Supersede any load baseline capture still pending on a microtask.
     documentLoadTokenRef.current += 1;
+    externalDiffBaselineRef.current = null;
     beginProgrammaticMarkdownChange("");
     editorRef.current?.setMarkdown("");
     editorScrollSnapshotRef.current = { ratio: 0, top: 0 };
@@ -2907,6 +2982,13 @@ function App() {
           source={externalFileChangePrompt.source}
         />
       ) : null}
+      {externalFileReloadedNotice ? (
+        <FileReloadedNoticeDialog
+          filePath={externalFileReloadedNotice.filePath}
+          onDismiss={() => setExternalFileReloadedNotice(null)}
+          open
+        />
+      ) : null}
       <SettingsDialog
         fontFamily={settings.fontFamily}
         fontSizePixels={settings.fontSizePixels}
@@ -2959,6 +3041,10 @@ function App() {
         diagramsAsFiles={settings.diagramsAsFiles}
         onDiagramsAsFilesChange={(diagramsAsFiles) =>
           setSettings((current) => ({ ...current, diagramsAsFiles }))
+        }
+        autoShowDiffOnExternalChange={settings.autoShowDiffOnExternalChange}
+        onAutoShowDiffOnExternalChangeChange={(autoShowDiffOnExternalChange) =>
+          setSettings((current) => ({ ...current, autoShowDiffOnExternalChange }))
         }
         onOpenChange={setSettingsOpen}
         open={settingsOpen}

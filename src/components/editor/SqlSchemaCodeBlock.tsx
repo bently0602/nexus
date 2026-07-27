@@ -4,8 +4,8 @@ import { ChevronDown, ChevronUp, Database, Pencil } from "lucide-react";
 import { Button } from "../ui/button";
 import { isSqlSchemaCodeBlock, parseSqlSchema } from "../../lib/sqlSchema";
 import { renderSqlSchemaSvg } from "../../lib/sqlSchemaSvg";
+import { currentHostTheme as theme } from "../../lib/theme";
 
-function theme(): "light" | "dark" { return document.documentElement.dataset.theme === "dark" ? "dark" : "light"; }
 function svgUrl(svg: string) { return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`; }
 
 export function SqlSchemaCodeBlock({ code }: CodeBlockEditorProps) {

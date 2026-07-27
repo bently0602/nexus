@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Check } from "lucide-react";
 import { Button } from "../ui/button";
 import {
   Dialog,
@@ -60,6 +61,7 @@ type SettingsDialogProps = {
   onResetSettings: () => void;
   onThemePreferenceChange: (themePreference: EditorThemePreference) => void;
   onDiagramsAsFilesChange: (diagramsAsFiles: boolean) => void;
+  onAutoShowDiffOnExternalChangeChange: (autoShowDiffOnExternalChange: boolean) => void;
   onOpenChange: (open: boolean) => void;
   open: boolean;
   pageMargins: EditorPageMargins;
@@ -69,6 +71,7 @@ type SettingsDialogProps = {
   profileName: string;
   themePreference: EditorThemePreference;
   diagramsAsFiles: boolean;
+  autoShowDiffOnExternalChange: boolean;
 };
 
 function clampFontSize(value: number) {
@@ -127,6 +130,7 @@ function SettingsDialog({
   onResetSettings,
   onThemePreferenceChange,
   onDiagramsAsFilesChange,
+  onAutoShowDiffOnExternalChangeChange,
   onOpenChange,
   open,
   pageMargins,
@@ -135,7 +139,8 @@ function SettingsDialog({
   paragraphSpacingPixels,
   profileName,
   themePreference,
-  diagramsAsFiles
+  diagramsAsFiles,
+  autoShowDiffOnExternalChange
 }: SettingsDialogProps) {
   const [mcpTesting, setMcpTesting] = useState(false);
   const [mcpTestResult, setMcpTestResult] = useState<McpConnectionTestResult | null>(null);
@@ -328,149 +333,204 @@ function SettingsDialog({
         </DialogHeader>
 
         <div className="nexus-settings-form">
-          <label className="nexus-settings-field">
-            <span className="nexus-settings-label">Editor font</span>
-            <select
-              className="nexus-settings-select"
-              value={fontFamily}
-              onChange={(event) => onFontFamilyChange(event.target.value as EditorFontFamily)}
-            >
-              {EDITOR_FONT_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </label>
+          <section className="nexus-settings-section">
+            <h3 className="nexus-settings-eyebrow">Appearance</h3>
+            <p className="nexus-settings-section-help">
+              Choose how Nexus looks. Changes are saved automatically.
+            </p>
 
-          <div className="nexus-settings-preview" style={{ fontFamily, fontSize: fontSizePixels }}>
-            The quick brown fox jumps over 0123456789.
-          </div>
-
-          <label className="nexus-settings-field">
-            <span className="nexus-settings-label">Theme</span>
-            <select
-              className="nexus-settings-select"
-              value={themePreference}
-              onChange={(event) =>
-                onThemePreferenceChange(event.target.value as EditorThemePreference)
-              }
+            <div
+              className="nexus-settings-theme-options"
+              role="radiogroup"
+              aria-label="Application theme"
             >
               {EDITOR_THEME_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label className="nexus-settings-field">
-            <span className="nexus-settings-label">Base font size</span>
-            <span className="nexus-settings-input-with-unit">
-              <input
-                className="nexus-settings-input"
-                inputMode="numeric"
-                max={EDITOR_FONT_SIZE_MAX_PIXELS}
-                min={EDITOR_FONT_SIZE_MIN_PIXELS}
-                onChange={(event) => handleFontSizeChange(event.target.value)}
-                step={EDITOR_FONT_SIZE_STEP_PIXELS}
-                type="number"
-                value={formatNumber(fontSizePixels)}
-              />
-              <span className="nexus-settings-unit">px</span>
-            </span>
-          </label>
-
-          <label className="nexus-settings-field">
-            <span className="nexus-settings-label">Paragraph spacing</span>
-            <span className="nexus-settings-input-with-unit">
-              <input
-                className="nexus-settings-input"
-                inputMode="numeric"
-                max={EDITOR_PARAGRAPH_SPACING_MAX_PIXELS}
-                min={EDITOR_PARAGRAPH_SPACING_MIN_PIXELS}
-                onChange={(event) => handleParagraphSpacingChange(event.target.value)}
-                step={EDITOR_PARAGRAPH_SPACING_STEP_PIXELS}
-                type="number"
-                value={formatNumber(paragraphSpacingPixels)}
-              />
-              <span className="nexus-settings-unit">px</span>
-            </span>
-          </label>
-
-          <label className="nexus-settings-field">
-            <span className="nexus-settings-label">Paper size</span>
-            <select
-              className="nexus-settings-select"
-              value={pageSize}
-              onChange={(event) => onPageSizeChange(event.target.value as EditorPageSize)}
-            >
-              {EDITOR_PAGE_SIZE_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label} ({option.widthInches} x {option.heightInches} in)
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label className="nexus-settings-field">
-            <span className="nexus-settings-label">Paper orientation</span>
-            <select
-              className="nexus-settings-select"
-              value={pageOrientation}
-              onChange={(event) =>
-                onPageOrientationChange(event.target.value as EditorPageOrientation)
-              }
-            >
-              {EDITOR_PAGE_ORIENTATION_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <fieldset className="nexus-settings-fieldset">
-            <legend className="nexus-settings-label">Margins</legend>
-            <div className="nexus-settings-margin-grid">
-              {EDITOR_PAGE_MARGIN_SIDES.map((side) => (
-                <label className="nexus-settings-margin-field" key={side.value}>
-                  <span>{side.label}</span>
-                  <span className="nexus-settings-input-with-unit">
-                    <input
-                      className="nexus-settings-input"
-                      inputMode="decimal"
-                      max={EDITOR_PAGE_MARGIN_MAX_INCHES}
-                      min={EDITOR_PAGE_MARGIN_MIN_INCHES}
-                      onChange={(event) => handlePageMarginChange(side.value, event.target.value)}
-                      step={EDITOR_PAGE_MARGIN_STEP_INCHES}
-                      type="number"
-                      value={formatNumber(pageMargins[side.value])}
-                    />
-                    <span className="nexus-settings-unit">in</span>
+                <button
+                  key={option.value}
+                  type="button"
+                  role="radio"
+                  aria-checked={themePreference === option.value}
+                  className="nexus-settings-theme-option"
+                  data-selected={themePreference === option.value || undefined}
+                  onClick={() => onThemePreferenceChange(option.value)}
+                >
+                  <span className="nexus-settings-theme-preview" aria-hidden="true">
+                    {option.swatches.map((color) => (
+                      <span key={color} style={{ backgroundColor: color }} />
+                    ))}
                   </span>
-                </label>
+                  <span className="nexus-settings-theme-copy">
+                    <strong>{option.label}</strong>
+                    <small>{option.description}</small>
+                  </span>
+                  <span className="nexus-settings-theme-check" aria-hidden="true">
+                    {themePreference === option.value ? <Check /> : null}
+                  </span>
+                </button>
               ))}
             </div>
-          </fieldset>
+          </section>
 
-          <label className="nexus-settings-field">
-            <span className="nexus-settings-label">Store diagrams as .svg files</span>
-            <input
-              type="checkbox"
-              checked={diagramsAsFiles}
-              onChange={(event) => onDiagramsAsFilesChange(event.target.checked)}
-            />
-          </label>
-          <p className="nexus-settings-help">
-            When on, drawio and isoflow diagrams are saved as <code>.svg</code> files next to the
-            document (referenced by relative path) instead of embedded inline as base64 — better for
-            other Markdown readers that struggle with large inline images. Diagrams stay editable in
-            Nexus either way. Off by default.
-          </p>
+          <section className="nexus-settings-section">
+            <h3 className="nexus-settings-eyebrow">Editor</h3>
 
-          <fieldset className="nexus-settings-fieldset">
-            <legend className="nexus-settings-label">MCP server (experimental)</legend>
+            <label className="nexus-settings-field">
+              <span className="nexus-settings-label">Editor font</span>
+              <select
+                className="nexus-settings-select"
+                value={fontFamily}
+                onChange={(event) => onFontFamilyChange(event.target.value as EditorFontFamily)}
+              >
+                {EDITOR_FONT_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <div
+              className="nexus-settings-preview"
+              style={{ fontFamily, fontSize: fontSizePixels }}
+            >
+              The quick brown fox jumps over 0123456789.
+            </div>
+
+            <label className="nexus-settings-field">
+              <span className="nexus-settings-label">Base font size</span>
+              <span className="nexus-settings-input-with-unit">
+                <input
+                  className="nexus-settings-input"
+                  inputMode="numeric"
+                  max={EDITOR_FONT_SIZE_MAX_PIXELS}
+                  min={EDITOR_FONT_SIZE_MIN_PIXELS}
+                  onChange={(event) => handleFontSizeChange(event.target.value)}
+                  step={EDITOR_FONT_SIZE_STEP_PIXELS}
+                  type="number"
+                  value={formatNumber(fontSizePixels)}
+                />
+                <span className="nexus-settings-unit">px</span>
+              </span>
+            </label>
+
+            <label className="nexus-settings-field">
+              <span className="nexus-settings-label">Paragraph spacing</span>
+              <span className="nexus-settings-input-with-unit">
+                <input
+                  className="nexus-settings-input"
+                  inputMode="numeric"
+                  max={EDITOR_PARAGRAPH_SPACING_MAX_PIXELS}
+                  min={EDITOR_PARAGRAPH_SPACING_MIN_PIXELS}
+                  onChange={(event) => handleParagraphSpacingChange(event.target.value)}
+                  step={EDITOR_PARAGRAPH_SPACING_STEP_PIXELS}
+                  type="number"
+                  value={formatNumber(paragraphSpacingPixels)}
+                />
+                <span className="nexus-settings-unit">px</span>
+              </span>
+            </label>
+          </section>
+
+          <section className="nexus-settings-section">
+            <h3 className="nexus-settings-eyebrow">Page setup</h3>
+
+            <label className="nexus-settings-field">
+              <span className="nexus-settings-label">Paper size</span>
+              <select
+                className="nexus-settings-select"
+                value={pageSize}
+                onChange={(event) => onPageSizeChange(event.target.value as EditorPageSize)}
+              >
+                {EDITOR_PAGE_SIZE_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label} ({option.widthInches} x {option.heightInches} in)
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="nexus-settings-field">
+              <span className="nexus-settings-label">Paper orientation</span>
+              <select
+                className="nexus-settings-select"
+                value={pageOrientation}
+                onChange={(event) =>
+                  onPageOrientationChange(event.target.value as EditorPageOrientation)
+                }
+              >
+                {EDITOR_PAGE_ORIENTATION_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <fieldset className="nexus-settings-fieldset">
+              <legend className="nexus-settings-label">Margins</legend>
+              <div className="nexus-settings-margin-grid">
+                {EDITOR_PAGE_MARGIN_SIDES.map((side) => (
+                  <label className="nexus-settings-margin-field" key={side.value}>
+                    <span>{side.label}</span>
+                    <span className="nexus-settings-input-with-unit">
+                      <input
+                        className="nexus-settings-input"
+                        inputMode="decimal"
+                        max={EDITOR_PAGE_MARGIN_MAX_INCHES}
+                        min={EDITOR_PAGE_MARGIN_MIN_INCHES}
+                        onChange={(event) =>
+                          handlePageMarginChange(side.value, event.target.value)
+                        }
+                        step={EDITOR_PAGE_MARGIN_STEP_INCHES}
+                        type="number"
+                        value={formatNumber(pageMargins[side.value])}
+                      />
+                      <span className="nexus-settings-unit">in</span>
+                    </span>
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+          </section>
+
+          <section className="nexus-settings-section">
+            <h3 className="nexus-settings-eyebrow">Documents</h3>
+
+            <label className="nexus-settings-field">
+              <span className="nexus-settings-label">Store diagrams as .svg files</span>
+              <input
+                type="checkbox"
+                checked={diagramsAsFiles}
+                onChange={(event) => onDiagramsAsFilesChange(event.target.checked)}
+              />
+            </label>
+            <p className="nexus-settings-help">
+              When on, drawio and isoflow diagrams are saved as <code>.svg</code> files next to the
+              document (referenced by relative path) instead of embedded inline as base64 — better
+              for other Markdown readers that struggle with large inline images. Diagrams stay
+              editable in Nexus either way. Off by default.
+            </p>
+
+            <label className="nexus-settings-field">
+              <span className="nexus-settings-label">
+                Automatically show diff view for outside edits
+              </span>
+              <input
+                type="checkbox"
+                checked={autoShowDiffOnExternalChange}
+                onChange={(event) => onAutoShowDiffOnExternalChangeChange(event.target.checked)}
+              />
+            </label>
+            <p className="nexus-settings-help">
+              When a file changes outside Nexus and this window has no unsaved edits, reload it and
+              open the diff view automatically. When off, the file is still reloaded, but you
+              instead get a brief notice that it changed on disk — no diff view opens. On by
+              default.
+            </p>
+          </section>
+
+          <section className="nexus-settings-section">
+            <h3 className="nexus-settings-eyebrow">MCP server (experimental)</h3>
             <p className="nexus-settings-help">
               Lets an external AI client (Claude, ChatGPT) read this document and propose
               edits over a local HTTP connection. Off by default. Writes are approved in a
@@ -781,7 +841,7 @@ function SettingsDialog({
                 )}
               </>
             )}
-          </fieldset>
+          </section>
 
           <p className="nexus-settings-profile">Profile: {profileName}</p>
         </div>

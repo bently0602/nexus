@@ -8,10 +8,7 @@ import { Braces, ChevronDown, ChevronUp, Pencil } from "lucide-react";
 import { Button } from "../ui/button";
 import { isOpenApiCodeBlock, parseOpenApiYaml, summarizeOpenApi } from "../../lib/openapiYaml";
 import { OpenApiReferencePreview } from "./OpenApiReferencePreview";
-
-function currentTheme(): "light" | "dark" {
-  return document.documentElement.dataset.theme === "dark" ? "dark" : "light";
-}
+import { currentHostTheme as currentTheme } from "../../lib/theme";
 
 export function OpenApiCodeBlock({ code }: CodeBlockEditorProps) {
   const { setCode } = useCodeBlockEditorContext();

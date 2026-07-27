@@ -15,6 +15,7 @@ import {
   OPENAPI_BLOCK_META
 } from "../../lib/openapiYaml";
 import { captureDiagramSelection, restoreDiagramSelection } from "./InsertDiagram";
+import { currentHostTheme } from "../../lib/theme";
 import type { LexicalEditor, RangeSelection } from "lexical";
 
 export function insertOpenApiCodeBlock(
@@ -45,7 +46,7 @@ function InsertOpenApi() {
     const targetEditor = realm.getValue(activeEditor$) ?? rootEditor;
     if (!rootEditor || !targetEditor) return;
     const selection = captureDiagramSelection(targetEditor);
-    const theme = document.documentElement.dataset.theme === "dark" ? "dark" : "light";
+    const theme = currentHostTheme();
     const result = await bridge.editOpenApi({ yaml: DEFAULT_OPENAPI_YAML, theme });
     if (result.canceled) return;
     insertOpenApiCodeBlock(targetEditor, rootEditor, selection, result.yaml);

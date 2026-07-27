@@ -33,11 +33,39 @@ export const EDITOR_FONT_OPTIONS = [
   { label: "Courier New", value: '"Courier New", monospace' }
 ] as const;
 
+/* `swatches` are [app background, work surface, accent] samples of each theme's tokens, drawn as a
+   three-band chip in the Settings theme picker. */
 export const EDITOR_THEME_OPTIONS = [
-  { label: "System", value: "system" },
-  { label: "Light", value: "light" },
-  { label: "Sky", value: "sky" },
-  { label: "Dark", value: "dark" }
+  {
+    label: "System",
+    value: "system",
+    description: "Follow your operating system appearance.",
+    swatches: ["#e9eef7", "#ffffff", "#1b1e23"]
+  },
+  {
+    label: "Light",
+    value: "light",
+    description: "A clean, neutral workspace.",
+    swatches: ["#f0f0f1", "#ffffff", "#185abd"]
+  },
+  {
+    label: "Sky",
+    value: "sky",
+    description: "Umpecca’s signature cool blue theme.",
+    swatches: ["#e9eef7", "#ffffff", "#185abd"]
+  },
+  {
+    label: "Dark",
+    value: "dark",
+    description: "A low-light workspace.",
+    swatches: ["#1b1e23", "#2b2f36", "#4d8fe0"]
+  },
+  {
+    label: "OLED Dark",
+    value: "oled",
+    description: "True-black surfaces for OLED displays.",
+    swatches: ["#000000", "#0a0a0a", "#68a7ff"]
+  }
 ] as const;
 
 export const DEFAULT_EDITOR_PAGE_SIZE = "Letter";
@@ -166,6 +194,7 @@ export type UserSettings = {
   showInvisibleCharacters: boolean;
   spellCheckEnabled: boolean;
   diagramsAsFiles: boolean;
+  autoShowDiffOnExternalChange: boolean;
   pageSize: EditorPageSize;
   pageOrientation: EditorPageOrientation;
   pageMargins: EditorPageMargins;
@@ -254,6 +283,11 @@ function sanitizeSpellCheckEnabled(value: unknown) {
 function sanitizeDiagramsAsFiles(value: unknown) {
   // Diagrams stay inline (base64) by default; only an explicit stored `true` externalizes them.
   return typeof value === "boolean" ? value : false;
+}
+
+function sanitizeAutoShowDiffOnExternalChange(value: unknown) {
+  // Auto-showing the diff is on by default; only an explicit stored `false` disables it.
+  return typeof value === "boolean" ? value : true;
 }
 
 function sanitizeOutlineVisible(value: unknown) {
@@ -584,6 +618,7 @@ export function createDefaultSettings(): UserSettings {
     showInvisibleCharacters: false,
     spellCheckEnabled: true,
     diagramsAsFiles: false,
+    autoShowDiffOnExternalChange: true,
     pageSize: DEFAULT_EDITOR_PAGE_SIZE,
     pageOrientation: DEFAULT_EDITOR_PAGE_ORIENTATION,
     pageMargins: createDefaultPageMargins(),
@@ -626,6 +661,9 @@ export function loadSettings(profileName: string): UserSettings {
       showInvisibleCharacters: sanitizeShowInvisibleCharacters(parsed.showInvisibleCharacters),
       spellCheckEnabled: sanitizeSpellCheckEnabled(parsed.spellCheckEnabled),
       diagramsAsFiles: sanitizeDiagramsAsFiles(parsed.diagramsAsFiles),
+      autoShowDiffOnExternalChange: sanitizeAutoShowDiffOnExternalChange(
+        parsed.autoShowDiffOnExternalChange
+      ),
       pageSize: isEditorPageSize(parsed.pageSize) ? parsed.pageSize : DEFAULT_EDITOR_PAGE_SIZE,
       pageOrientation: isEditorPageOrientation(parsed.pageOrientation)
         ? parsed.pageOrientation

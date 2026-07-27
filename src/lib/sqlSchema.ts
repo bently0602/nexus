@@ -2,7 +2,9 @@ export const SQL_SCHEMA_BLOCK_LANGUAGE = "sql";
 export const SQL_SCHEMA_BLOCK_META = "sqlschema";
 export const SQL_SCHEMA_VERSION = 1 as const;
 
-export type SqlSchemaColumn = { id: string; name: string; type: string; description: string; primaryKey: boolean; nullable: boolean; unique: boolean; defaultValue: string };
+/** "" when the column is not an identity column, otherwise the GENERATED ... AS IDENTITY variant. */
+export type SqlSchemaIdentity = "" | "always" | "byDefault";
+export type SqlSchemaColumn = { id: string; name: string; type: string; description: string; primaryKey: boolean; nullable: boolean; unique: boolean; identity: SqlSchemaIdentity; defaultValue: string };
 export type SqlSchemaTable = { id: string; name: string; description: string; color: string; position: { x: number; y: number }; columns: SqlSchemaColumn[] };
 export type SqlSchemaRelationship = { id: string; sourceTableId: string; sourceColumnId: string; targetTableId: string; targetColumnId: string };
 export type SqlSchemaDocument = { version: typeof SQL_SCHEMA_VERSION; title: string; tables: SqlSchemaTable[]; relationships: SqlSchemaRelationship[] };
@@ -10,6 +12,8 @@ export type SqlSchemaParseResult = { ok: true; document: SqlSchemaDocument } | {
 
 export const SQL_SCHEMA_TYPES = ["bigint", "bigserial", "boolean", "bytea", "date", "decimal", "double precision", "integer", "json", "jsonb", "numeric", "real", "serial", "smallint", "text", "time", "timestamp", "timestamptz", "uuid", "varchar(255)"];
 const COLORS = ["#2563eb", "#7c3aed", "#0891b2", "#16a34a", "#ea580c", "#dc2626"];
+const IDENTITY_CLAUSE = /\s+GENERATED\s+(ALWAYS|BY\s+DEFAULT)\s+AS\s+IDENTITY\b/i;
+export function formatSqlIdentity(identity: SqlSchemaIdentity) { return identity ? `GENERATED ${identity === "byDefault" ? "BY DEFAULT" : "ALWAYS"} AS IDENTITY` : ""; }
 
 export function createEmptySqlSchema(): SqlSchemaDocument { return { version: SQL_SCHEMA_VERSION, title: "Data model", tables: [], relationships: [] }; }
 export function cloneSqlSchema(document: SqlSchemaDocument): SqlSchemaDocument { return JSON.parse(JSON.stringify(document)) as SqlSchemaDocument; }
@@ -69,7 +73,7 @@ export function serializeSqlSchema(document: SqlSchemaDocument): string {
   for (const table of document.tables) { header.push(`-- layout ${table.name} x=${formatNumber(table.position.x)} y=${formatNumber(table.position.y)} color=${table.color}`); if (table.description) header.push(`-- note table ${table.name}: ${table.description}`); for (const column of table.columns) if (column.description) header.push(`-- note column ${table.name}.${column.name}: ${column.description}`); }
   const tables = document.tables.map((table) => {
     const definitions = table.columns.map((column) => {
-      const parts = [column.name, column.type]; if (!column.nullable) parts.push("NOT NULL"); if (column.unique && !column.primaryKey) parts.push("UNIQUE"); if (column.defaultValue) parts.push(`DEFAULT ${column.defaultValue}`); return `  ${parts.join(" ")}`;
+      const parts = [column.name, column.type]; if (column.identity) parts.push(formatSqlIdentity(column.identity)); if (!column.nullable) parts.push("NOT NULL"); if (column.unique && !column.primaryKey) parts.push("UNIQUE"); if (column.defaultValue) parts.push(`DEFAULT ${column.defaultValue}`); return `  ${parts.join(" ")}`;
     });
     const primary = table.columns.filter((column) => column.primaryKey); if (primary.length) definitions.push(`  PRIMARY KEY (${primary.map((column) => column.name).join(", ")})`);
     return `CREATE TABLE ${table.name} (\n${definitions.join(",\n")}\n);`;
@@ -84,7 +88,7 @@ export function getSqlSchemaWarnings(): string[] { return []; }
 export function validateSqlSchema(document: SqlSchemaDocument): string[] {
   const errors: string[] = []; if (!document.title.trim()) errors.push("Schema title is required.");
   const tables = new Set<string>(); const ids = new Set<string>();
-  for (const table of document.tables) { if (!isIdentifier(table.name)) errors.push(`Invalid table name: ${table.name || "(empty)"}.`); if (tables.has(table.name)) errors.push(`Duplicate table name: ${table.name}.`); tables.add(table.name); if (!/^#[0-9a-f]{6}$/i.test(table.color)) errors.push(`Table ${table.name} has an invalid color.`); if (!Number.isFinite(table.position.x) || !Number.isFinite(table.position.y)) errors.push(`Table ${table.name} has an invalid position.`); const columns = new Set<string>(); for (const column of table.columns) { if (!isIdentifier(column.name)) errors.push(`Invalid column name in ${table.name}.`); if (columns.has(column.name)) errors.push(`Duplicate column name ${column.name} in table ${table.name}.`); columns.add(column.name); ids.add(column.id); if (!column.type.trim()) errors.push(`Column ${table.name}.${column.name} requires a type.`); } }
+  for (const table of document.tables) { if (!isIdentifier(table.name)) errors.push(`Invalid table name: ${table.name || "(empty)"}.`); if (tables.has(table.name)) errors.push(`Duplicate table name: ${table.name}.`); tables.add(table.name); if (!/^#[0-9a-f]{6}$/i.test(table.color)) errors.push(`Table ${table.name} has an invalid color.`); if (!Number.isFinite(table.position.x) || !Number.isFinite(table.position.y)) errors.push(`Table ${table.name} has an invalid position.`); const columns = new Set<string>(); for (const column of table.columns) { if (!isIdentifier(column.name)) errors.push(`Invalid column name in ${table.name}.`); if (columns.has(column.name)) errors.push(`Duplicate column name ${column.name} in table ${table.name}.`); columns.add(column.name); ids.add(column.id); if (!column.type.trim()) errors.push(`Column ${table.name}.${column.name} requires a type.`); if (column.identity && column.defaultValue) errors.push(`Column ${table.name}.${column.name} cannot combine an identity clause with DEFAULT.`); } }
   const relationIds = new Set<string>(); for (const relationship of document.relationships) { if (!isIdentifier(relationship.id)) errors.push(`Invalid relationship name: ${relationship.id}.`); if (relationIds.has(relationship.id)) errors.push(`Duplicate relationship name: ${relationship.id}.`); relationIds.add(relationship.id); const source = findColumn(document, relationship.sourceTableId, relationship.sourceColumnId); const target = findColumn(document, relationship.targetTableId, relationship.targetColumnId); if (!source || !target) errors.push(`Relationship ${relationship.id} references a missing table or column.`); else if (!target.column.primaryKey && !target.column.unique) errors.push(`Relationship ${relationship.id} must reference a primary or unique column.`); }
   return errors;
 }
@@ -97,7 +101,7 @@ function parseCreateTable(statement: string, line: number, tableNotes: Map<strin
   for (const item of items) {
     const trimmed = item.trim(); if (!trimmed) continue;
     const pk = trimmed.match(/^PRIMARY\s+KEY\s*\(\s*([A-Za-z_][\w$]*(?:\s*,\s*[A-Za-z_][\w$]*)*)\s*\)$/i); if (pk) { pk[1].split(/\s*,\s*/).forEach((column) => primary.add(column)); continue; }
-    if (/^(UNIQUE|CONSTRAINT|FOREIGN\s+KEY)/i.test(trimmed)) return fail(line, "Only table-level PRIMARY KEY constraints are supported.");
+    if (/^(UNIQUE|CONSTRAINT|FOREIGN\s+KEY)\b/i.test(trimmed)) return fail(line, "Only table-level PRIMARY KEY constraints are supported.");
     const column = parseColumn(trimmed, line, name, columnNotes); if (!("column" in column)) return column; columns.push(column.column);
   }
   for (const column of columns) if (primary.has(column.name)) column.primaryKey = true;
@@ -106,11 +110,19 @@ function parseCreateTable(statement: string, line: number, tableNotes: Map<strin
 
 function parseColumn(item: string, line: number, table: string, notes: Map<string, string>): { ok: true; column: SqlSchemaColumn } | SqlSchemaParseResult {
   const match = item.match(/^([A-Za-z_][\w$]*)\s+(.+)$/s); if (!match) return fail(line, `Invalid column definition '${item}'.`); const name = match[1]; let rest = match[2].trim();
+  // Identity is pulled out before DEFAULT so that "GENERATED BY DEFAULT AS IDENTITY" is not misread as a default expression.
+  let identity: SqlSchemaIdentity = ""; const identityMatch = rest.match(IDENTITY_CLAUSE);
+  if (identityMatch) {
+    identity = /^BY\b/i.test(identityMatch[1]) ? "byDefault" : "always";
+    const after = rest.slice(identityMatch.index! + identityMatch[0].length).trim();
+    if (after.startsWith("(")) return fail(line, `Identity sequence options are outside the Nexus schema subset (${table}.${name}).`);
+    rest = `${rest.slice(0, identityMatch.index)} ${after}`.trim();
+  }
   let defaultValue = ""; const defaultMatch = rest.match(/\s+DEFAULT\s+(.+)$/is); if (defaultMatch) { defaultValue = defaultMatch[1].trim(); rest = rest.slice(0, defaultMatch.index).trim(); }
   const primaryKey = /\s+PRIMARY\s+KEY\b/i.test(` ${rest}`); const nullable = !/\s+NOT\s+NULL\b/i.test(` ${rest}`); const unique = /\s+UNIQUE\b/i.test(` ${rest}`);
   rest = rest.replace(/\s+PRIMARY\s+KEY\b/ig, "").replace(/\s+NOT\s+NULL\b/ig, "").replace(/\s+UNIQUE\b/ig, "").trim();
   if (!rest || /\b(CHECK|REFERENCES|GENERATED|COLLATE)\b/i.test(rest)) return fail(line, `Unsupported column definition for ${table}.${name}.`);
-  return { ok: true, column: { id: columnId(table, name), name, type: rest, description: notes.get(`${table}.${name}`) ?? "", primaryKey, nullable: primaryKey ? false : nullable, unique, defaultValue } };
+  return { ok: true, column: { id: columnId(table, name), name, type: rest, description: notes.get(`${table}.${name}`) ?? "", primaryKey, nullable: primaryKey || identity ? false : nullable, unique, identity, defaultValue } };
 }
 
 function splitStatements(sql: string) { return splitTopLevel(sql, ";").map((statement) => statement.trim()).filter(Boolean); }
