@@ -4133,6 +4133,10 @@ function buildMenu() {
         {
           label: "AI Providers…",
           click: () => sendMenuAction("aiSettings")
+        },
+        {
+          label: "MCP Server…",
+          click: () => sendMenuAction("mcpSettings")
         }
       ]
     },

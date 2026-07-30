@@ -287,6 +287,9 @@ function AppMenuBar({
           <MenubarItem onSelect={() => dispatchMenuAction("aiSettings")}>
             AI Providers…
           </MenubarItem>
+          <MenubarItem onSelect={() => dispatchMenuAction("mcpSettings")}>
+            MCP Server…
+          </MenubarItem>
         </MenubarContent>
       </MenubarMenu>
 

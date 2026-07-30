@@ -50,6 +50,7 @@ export type NexusMenuAction =
   | "togglePaperView"
   | "settings"
   | "aiSettings"
+  | "mcpSettings"
   | "about"
   | "copyHtml"
   | "editFrontmatter"

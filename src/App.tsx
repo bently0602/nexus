@@ -95,6 +95,7 @@ import { readImageFileAsDataUrl } from "./lib/imagePaste";
 import { DEMO_DOCUMENT_MARKDOWN } from "./lib/demoDocument";
 import SettingsDialog from "./components/settings/SettingsDialog";
 import AiSettingsDialog from "./components/settings/AiSettingsDialog";
+import McpSettingsDialog from "./components/settings/McpSettingsDialog";
 import AiEditPreviewDialog from "./components/ai/AiEditPreviewDialog";
 import AiChatPanel from "./components/ai/AiChatPanel";
 import AiNotice from "./components/ai/AiNotice";
@@ -488,6 +489,7 @@ function App() {
   );
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [aiSettingsOpen, setAiSettingsOpen] = useState(false);
+  const [mcpSettingsOpen, setMcpSettingsOpen] = useState(false);
   const [aiChatHistoryResetVersion, setAiChatHistoryResetVersion] = useState(0);
   const [aboutOpen, setAboutOpen] = useState(false);
   const [aiBusy, setAiBusy] = useState(false);
@@ -576,6 +578,7 @@ function App() {
     handleExternalFileChanged,
     openSettings: () => setSettingsOpen(true),
     openAiSettings: () => setAiSettingsOpen(true),
+    openMcpSettings: () => setMcpSettingsOpen(true),
     openAbout: () => setAboutOpen(true),
     openPublishWeb: () => setPublishOpen(true),
     openPublishQuickConnect: () => setQuickConnectOpen(true),
@@ -822,6 +825,7 @@ function App() {
     handleExternalFileChanged,
     openSettings: () => setSettingsOpen(true),
     openAiSettings: () => setAiSettingsOpen(true),
+    openMcpSettings: () => setMcpSettingsOpen(true),
     openAbout: () => setAboutOpen(true),
     openPublishWeb: () => setPublishOpen(true),
     openPublishQuickConnect: () => setQuickConnectOpen(true),
@@ -2661,6 +2665,9 @@ function App() {
       case "aiSettings":
         h.openAiSettings();
         break;
+      case "mcpSettings":
+        h.openMcpSettings();
+        break;
       case "aiSelection":
         if (payload) {
           void h.runSelectionAiAction(payload.action, payload.options);
@@ -2992,35 +2999,10 @@ function App() {
       <SettingsDialog
         fontFamily={settings.fontFamily}
         fontSizePixels={settings.fontSizePixels}
-        mcpServer={settings.mcpServer}
-        mcpNgrokStatus={mcpNgrokStatus}
-        onTestMcpConnection={() => window.nexus?.testMcpConnection() ?? Promise.resolve(undefined)}
-        onStopNgrok={async () => {
-          const status = await window.nexus?.stopMcpNgrok();
-          if (status) {
-            setMcpNgrokStatus(status);
-          }
-        }}
-        onRestartNgrok={async () => {
-          const status = await window.nexus?.restartMcpNgrok({
-            enabled: settings.mcpServer.enabled,
-            port: settings.mcpServer.port,
-            authMode: settings.mcpServer.authMode,
-            bearerToken: settings.mcpServer.bearerToken,
-            ngrokEnabled: settings.mcpServer.ngrokEnabled,
-            ngrokDomain: settings.mcpServer.ngrokDomain,
-            ngrokUseCustomPath: settings.mcpServer.ngrokUseCustomPath,
-            ngrokPath: settings.mcpServer.ngrokPath
-          });
-          if (status) {
-            setMcpNgrokStatus(status);
-          }
-        }}
         onFontFamilyChange={(fontFamily) => setSettings((current) => ({ ...current, fontFamily }))}
         onFontSizePixelsChange={(fontSizePixels) =>
           setSettings((current) => ({ ...current, fontSizePixels }))
         }
-        onMcpServerChange={(mcpServer) => setSettings((current) => ({ ...current, mcpServer }))}
         onPageMarginsChange={(pageMargins) =>
           setSettings((current) => ({ ...current, pageMargins }))
         }
@@ -3062,6 +3044,36 @@ function App() {
         ai={settings.ai}
         onAiChange={(ai) => setSettings((current) => ({ ...current, ai }))}
         onDeleteAllChatHistory={deleteAllAiChatHistory}
+      />
+      <McpSettingsDialog
+        open={mcpSettingsOpen}
+        onOpenChange={setMcpSettingsOpen}
+        profileName={profileName}
+        mcpServer={settings.mcpServer}
+        mcpNgrokStatus={mcpNgrokStatus}
+        onMcpServerChange={(mcpServer) => setSettings((current) => ({ ...current, mcpServer }))}
+        onTestMcpConnection={() => window.nexus?.testMcpConnection() ?? Promise.resolve(undefined)}
+        onStopNgrok={async () => {
+          const status = await window.nexus?.stopMcpNgrok();
+          if (status) {
+            setMcpNgrokStatus(status);
+          }
+        }}
+        onRestartNgrok={async () => {
+          const status = await window.nexus?.restartMcpNgrok({
+            enabled: settings.mcpServer.enabled,
+            port: settings.mcpServer.port,
+            authMode: settings.mcpServer.authMode,
+            bearerToken: settings.mcpServer.bearerToken,
+            ngrokEnabled: settings.mcpServer.ngrokEnabled,
+            ngrokDomain: settings.mcpServer.ngrokDomain,
+            ngrokUseCustomPath: settings.mcpServer.ngrokUseCustomPath,
+            ngrokPath: settings.mcpServer.ngrokPath
+          });
+          if (status) {
+            setMcpNgrokStatus(status);
+          }
+        }}
       />
       {pendingAiEdit ? (
         <AiEditPreviewDialog

@@ -675,8 +675,12 @@ button:active {
   border-radius: 0 calc(var(--radius) - 3px) calc(var(--radius) - 3px) 0;
   color: var(--ink);
   cursor: pointer;
+  /* The list is a column flex container, so entries would otherwise take the default flex-shrink: 1
+     and *compress* to fit instead of overflowing — rows got shorter the more headings a document
+     had, and the list never scrolled at all (it just squeezed until the text clipped). Fixing the
+     entries at their natural height is what makes the list's overflow-y actually engage. */
+  flex: none;
   line-height: 1.35;
-  min-height: 0;
   min-width: 0;
   overflow: hidden;
   padding: 0.34rem 0.5rem;
@@ -1876,10 +1880,12 @@ body.nexus-resizing-col * {
   gap: 0.35rem;
 }
 
-/* AI provider setup dialog: a slightly wider modal whose body is a stack of per-provider cards.
-   Overrides `width`, not `max-width` — the base rule sets an explicit width, and a max-width can
-   only cap that, never widen it. Keeps the base viewport clamp so it still fits a narrow window. */
-.nexus-ai-dialog-content {
+/* Setup dialogs whose bodies are denser than a normal modal's — a stack of per-provider cards, or
+   MCP's connection URLs and tokens — get a wider frame. Overrides `width`, not `max-width`: the
+   base rule sets an explicit width, and a max-width can only cap that, never widen it. Keeps the
+   base viewport clamp so they still fit a narrow window. */
+.nexus-ai-dialog-content,
+.nexus-mcp-dialog-content {
   width: min(620px, calc(100vw - 2rem));
 }
 
