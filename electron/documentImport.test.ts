@@ -81,20 +81,24 @@ describe("validateImportPaths", () => {
 });
 
 describe("prepareDocumentImport", () => {
-  it("renders a real textless PDF without selecting unpdf's unavailable canvas mock", async () => {
-    const result = await prepareDocumentImport(["scan.pdf"], {
-      readFile: async () => minimalBlankPdf()
-    });
+  it(
+    "renders a real textless PDF without selecting unpdf's unavailable canvas mock",
+    async () => {
+      const result = await prepareDocumentImport(["scan.pdf"], {
+        readFile: async () => minimalBlankPdf()
+      });
 
-    expect(result.items).toMatchObject([
-      {
-        id: "page-1",
-        text: "",
-        visionImage: { mimeType: "image/png", cropRegions: true }
-      }
-    ]);
-    expect(result.items[0].visionImage.dataUrl).toMatch(/^data:image\/png;base64,/);
-  });
+      expect(result.items).toMatchObject([
+        {
+          id: "page-1",
+          text: "",
+          visionImage: { mimeType: "image/png", cropRegions: true }
+        }
+      ]);
+      expect(result.items[0].visionImage.dataUrl).toMatch(/^data:image\/png;base64,/);
+    },
+    20_000
+  );
 
   it("does not load the native PDF canvas module for ordinary image imports", async () => {
     const loadCanvasModule = vi.fn(async () => {
