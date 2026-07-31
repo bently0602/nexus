@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Kept the JavaScript wrapper for the native PDF canvas dependency inside `app.asar` while
+  unpacking only its platform binding, preventing late PDF imports in the Windows portable build
+  from failing when the wrapper is unavailable in the temporary extraction directory.
+
 ### Added
 
 - T_142: Saved AI chat transcript and agent history locally for saved documents in opaque,

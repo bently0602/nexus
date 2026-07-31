@@ -29,13 +29,13 @@
       "THIRD_PARTY_NOTICES.md",
       "nexus.png",
       "nexus.ico",
-      "nexus.icns"
+      "nexus.icns",
+      "node_modules/@napi-rs/canvas/**"
     ],
     "asar": true,
     "asarUnpack": [
       "dist/drawio/**",
       "dist/drawio-host.html",
-      "node_modules/@napi-rs/canvas/**",
       "node_modules/@napi-rs/canvas-*/**"
     ],
     "mac": {

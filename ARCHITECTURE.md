@@ -439,7 +439,9 @@ cap a selection at 20 pages/items, each source image at 8 MB, combined vision da
 50 MB, and retained embedded pictures at 20 MB total. Cancel and failures leave the document unchanged.
 Inline TeX delimiters returned during import normalize to `` `math:...` `` spans, while display TeX
 normalizes to fenced `math` blocks. Both rich text and HTML/PDF/web exports render the two forms with
-KaTeX using inline and display mode respectively.
+KaTeX using inline and display mode respectively. Packaged builds keep the canvas JavaScript wrapper
+inside `app.asar` and unpack only the platform-native binding, so a late PDF import does not read
+JavaScript from the Windows portable launcher's temporary extraction directory.
 
 Technologies: Electron dialog/IPC, unpdf (PDF.js), @napi-rs/canvas, configured AI provider, MDXEditor.
 
