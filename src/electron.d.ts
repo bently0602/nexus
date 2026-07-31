@@ -59,6 +59,7 @@ export type NexusMenuAction =
   | "publishQuickConnect"
   | "toggleAiChat"
   | "aiSelection"
+  | "contentOrganization"
   | "documentImport";
 
 /**

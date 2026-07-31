@@ -3856,6 +3856,12 @@ function buildAiSelectionMenuItems() {
     },
     { type: "separator" },
     {
+      // Full-document transform. The renderer obtains the live Markdown and requires a preview
+      // approval before applying the proposed replacement.
+      label: "Content Organization",
+      click: () => sendMenuAction("contentOrganization")
+    },
+    {
       // Generate-and-insert action (not a selection transform), so it bypasses the aiSelection
       // catalog and sends a plain menu action the renderer maps to the document importer.
       label: "Import PDF or Images…",

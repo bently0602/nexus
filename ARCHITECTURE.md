@@ -20,7 +20,9 @@ This document serves as a living overview of the Nexus codebase. Update it as th
   so unknown keys remain attached to their owning nodes, and returns normalized YAML only on Save.
 - `sqlschema-host.html` / `src/sqlschema-host/`: Separate Vite page for the offline React Flow data
   model editor. It receives PostgreSQL schema text through `sqlSchemaPreload.cjs` and returns one
-  validated, canonically formatted SQL replacement on explicit Save.
+  validated, canonically formatted SQL replacement on explicit Save. Its viewport-height flex/grid
+  shell keeps the React Flow canvas fixed while the right-hand table inspector and optional SQL
+  preview own their overflow independently.
 - `src/lib/sqlSchema.ts`: Restricted PostgreSQL parsing, canonical formatting, validation, and Nexus
   layout/note directives for `sql sqlschema` blocks. `src/lib/sqlSchemaSvg.ts` renders the document
   preview as deterministic SVG, while `electron/sqlSchemaExport.cjs` produces the export equivalent.
@@ -390,6 +392,16 @@ Description: Adds a "Clean up formatting" toolbar command, shown only while edit
 Technologies: React state, the pure `format.ts` helper, MDXEditor source-mode CodeMirror `EditorView` (`dispatch`), shadcn-styled toolbar button.
 
 Deployment: Runs inside each desktop app renderer window, only while the editor is in source mode.
+
+#### AI Content Organization Workflow
+
+Name: Reviewed Whole-Document Organization
+
+Description: The native and rendered AI menus dispatch `contentOrganization` to the renderer. The app captures the complete non-empty Markdown buffer, sends it to the configured provider with a prompt that permits structural reordering, Markdown normalization, extraction-line repair, and removal of only unmistakable pagination artifacts while forbidding semantic additions, deletions, summaries, paraphrases, and translations. `src/lib/ai/contentOrganization.ts` then compares order-independent multisets of protected frontmatter, fenced code/math/embed blocks, inline code/math, links and images, base64 image data, normalized table payloads, footnotes, and directives; a changed protected payload rejects the proposal before it can reach the editor. A valid changed result opens the shared side-by-side AI preview in document mode. Acceptance checks that the live buffer still matches the captured original, then performs one whole-buffer CodeMirror transaction in source mode or one MDXEditor/Lexical `setMarkdown` update in rich-text mode. Discard, empty or unchanged output, provider failure, protected-payload validation failure, and stale proposals leave the document unchanged.
+
+Technologies: React state, configured AI provider, tested prompt builder, protected-Markdown validator, MDXEditor/Lexical, CodeMirror, Radix Dialog.
+
+Deployment: Runs inside each desktop app renderer window; only the configured provider receives the document after explicit user invocation.
 
 #### List Editing Workflow
 

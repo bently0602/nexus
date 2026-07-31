@@ -79,6 +79,7 @@ Markdown is effective for structured writing, but many users still need a calm e
 - Optional, per-OS-profile AI provider configuration for OpenAI, Azure OpenAI, DeepSeek, Anthropic, Ollama, LM Studio, and an existing `opencode serve` instance, with user-selectable models and connection testing.
 - AI provider API keys encrypted at rest using the operating system's secure storage and omitted from plaintext application settings.
 - AI selection actions for improving, shortening, expanding, correcting, summarizing, changing the tone of, and translating selected text, with an original-versus-proposed review before replacement.
+- AI Content Organization for conservatively restructuring and cleaning the complete current document, with protected Markdown validation and a full-document review before replacement.
 - A resizable, document-scoped AI chat panel that streams responses, can include the current editor selection, can use the existing Nexus document tools to inspect or propose changes to the current document, and saves chat history locally for saved documents.
 - AI chat write operations routed through the same document-change confirmation boundary as MCP writes.
 - An AI document-import workflow that converts one PDF or multiple ordered images into Markdown at the current caret, using local PDF extraction where possible and the configured vision-capable model where image understanding is required.
@@ -256,6 +257,10 @@ Markdown is effective for structured writing, but many users still need a calm e
 - Given I have configured an AI provider and selected text in the editor
 - When I choose an AI selection action
 - Then the system shows the original and proposed replacement before changing the document
+
+- Given the current document is non-empty
+- When I choose AI/Content Organization
+- Then the system proposes a cleaner structure without adding, summarizing, paraphrasing, or removing semantic content and requires review before replacing the document
 
 - Given the AI chat panel is open
 - When I ask a question about the current document
@@ -469,6 +474,9 @@ Markdown is effective for structured writing, but many users still need a calm e
 - The system shall provide AI actions for improving, shortening, expanding, correcting, summarizing, changing the tone of, and translating the current non-empty editor selection.
 - The system shall show the original selection and proposed Markdown replacement in a review dialog and shall change the document only when the user accepts the proposal.
 - The system shall preserve the captured rich-text or source selection while an AI selection request runs so an accepted proposal replaces the intended text.
+- The system shall provide an AI Content Organization action for a non-empty current document that may reorder existing sections, normalize Markdown and extraction line breaks, and remove only unmistakable standalone page numbers or repeated page headers and footers.
+- The system shall instruct Content Organization not to add, summarize, paraphrase, translate, or remove semantic content; shall reject output that changes protected frontmatter, code, math, embedded blocks, link/image destinations, image data, tables, footnotes, or directives; and shall require full-document review before one accepted replacement.
+- The system shall leave the document unchanged when Content Organization is discarded, fails, returns empty or protected-content-changing output, or becomes stale because the document changed while its proposal was pending.
 - The system shall provide a resizable AI chat panel scoped to the document in its editor window.
 - The system shall save AI chat history locally for saved documents using opaque, profile-scoped user-data files; untitled documents shall remain session-only.
 - The system shall allow the user to clear the active conversation and delete its saved history, and to delete all saved chat history for the current profile.
@@ -561,6 +569,7 @@ Markdown is effective for structured writing, but many users still need a calm e
   prefixed with `math:` render formulas within prose without interrupting sentence flow. AI document
   import chooses between the two forms based on the formula's source context.
 - AI selection actions: the AI menu operates on the last non-empty editor selection in rich-text or source mode, sends the selected Markdown to the configured provider with the chosen rewrite instruction, and displays the original and proposed text side by side. The editor changes only when the user accepts the proposal; dismissal and provider errors are non-destructive.
+- AI Content Organization: the AI menu sends the complete non-empty Markdown buffer to the configured provider with conservative cleanup and preservation instructions. Before preview, Nexus verifies that opaque Markdown payloads are unchanged as order-independent multisets. The side-by-side review replaces the whole document in one editor transaction only after acceptance; discard, invalid output, provider failure, and a document that changed while the proposal was pending are non-destructive.
 - AI chat: a resizable side panel streams a conversation with the configured provider, optionally attaches the editor selection to the next user turn, and gives tool-capable models the Nexus document tools for the panel's current document. Read tools provide document context on demand; write tools retain the existing per-call review boundary. Saved documents retain their chat transcript and agent conversation in local, opaque user-data files; untitled documents remain session-only. Clear Conversation deletes the active file, while AI Provider settings can delete all saved chats for the OS profile.
 - Diff review mode: use MDXEditor's diff mode to compare the current editor buffer against a renderer-supplied baseline, with the diff side read-only and the editor background kept white like the other editing modes.
 - Mermaid diagrams: render standard fenced `mermaid` code blocks as non-editable diagrams in rich text mode, while source and diff modes keep the raw Mermaid fence editable as Markdown text.
@@ -624,13 +633,14 @@ Markdown is effective for structured writing, but many users still need a calm e
 22. Use Edit/Compare with Previous Version to compare the current buffer against the preserved version from before the most recent save or reload.
 23. Optionally configure a hosted or local model from AI/AI Providers, test the connection, and choose the default provider.
 24. Select text and choose an AI rewrite action, then compare the original and proposed Markdown before accepting or discarding the replacement.
-25. Open the AI chat panel to ask about the current document, optionally attach the current selection, and review any write proposed through a document tool.
-26. Use AI/Import PDF or Images to transcribe one PDF or multiple ordered images into Markdown at the current caret.
-27. Optionally enable the MCP server from Settings/Preferences, copy the displayed connection URL and bearer token into Claude Desktop or ChatGPT, and review each proposed write through the in-app confirmation diff before applying it.
-28. Optionally turn on the ngrok tunnel in the MCP server settings and copy the displayed public MCP endpoint URL into a remote AI client to reach the same authenticated, write-confirmed server.
-29. Use the editor toolbar outline toggle to show a sidebar of the document's headings, click a heading to jump to that section in rich-text or source mode, and follow the highlighted entry that tracks the section currently at the top of the editor as you scroll.
-30. Use File/Publish as Web to render the current document as a self-contained web page, enter SFTP connection details, accept the server's host-key fingerprint, and upload the page; copy the resulting URL when a public base URL is configured.
-31. Use File/Publish as HTML over QuickConnect to send the same self-contained web page to a configured HTTP endpoint with a saved URL, path, and bearer token; copy the resulting URL when the server returns one.
+25. Choose AI/Content Organization to review a conservative cleanup of the complete document before accepting or discarding it.
+26. Open the AI chat panel to ask about the current document, optionally attach the current selection, and review any write proposed through a document tool.
+27. Use AI/Import PDF or Images to transcribe one PDF or multiple ordered images into Markdown at the current caret.
+28. Optionally enable the MCP server from Settings/Preferences, copy the displayed connection URL and bearer token into Claude Desktop or ChatGPT, and review each proposed write through the in-app confirmation diff before applying it.
+29. Optionally turn on the ngrok tunnel in the MCP server settings and copy the displayed public MCP endpoint URL into a remote AI client to reach the same authenticated, write-confirmed server.
+30. Use the editor toolbar outline toggle to show a sidebar of the document's headings, click a heading to jump to that section in rich-text or source mode, and follow the highlighted entry that tracks the section currently at the top of the editor as you scroll.
+31. Use File/Publish as Web to render the current document as a self-contained web page, enter SFTP connection details, accept the server's host-key fingerprint, and upload the page; copy the resulting URL when a public base URL is configured.
+32. Use File/Publish as HTML over QuickConnect to send the same self-contained web page to a configured HTTP endpoint with a saved URL, path, and bearer token; copy the resulting URL when the server returns one.
 
 ## 5. UI / Design Notes (Optional)
 
@@ -650,6 +660,7 @@ Markdown is effective for structured writing, but many users still need a calm e
 - Keep editor appearance settings in a compact shadcn-styled dialog opened from the native Settings menu.
 - Keep AI provider setup in a dedicated dialog opened from the native AI menu, with explicit provider enablement, default-provider selection, model settings, secret-key handling, and connection status.
 - Keep AI selection actions in the native AI menu and require a compact original-versus-proposed review dialog before replacement.
+- Keep Content Organization in the AI menu and require a full-document original-versus-proposed review before replacement.
 - Keep the AI chat in a resizable side panel beside the document, showing streamed responses and expandable tool activity without obscuring the editor.
 - Keep base font size, paragraph spacing, paper size, paper orientation, and margin settings in the same compact settings dialog as editor appearance.
 - Keep application information in a compact shadcn-styled dialog opened from the native Help menu.
@@ -751,6 +762,7 @@ Markdown is effective for structured writing, but many users still need a calm e
 - AI selection actions should be unavailable or report a clear instruction when the editor has no non-empty selection.
 - Rejecting or closing an AI selection preview should leave the original selection unchanged.
 - An AI selection result should replace the selection captured when the action began, even if opening the AI menu or preview moved focus away from the editor.
+- Content Organization should reject empty output, protected Markdown changes, and stale proposals without changing the document; rejecting or closing its preview should also be non-destructive.
 - Stopping a streaming AI chat response should retain already displayed partial text, stop further tool steps, and leave the document unchanged unless a previously confirmed write already completed.
 - AI chat providers that do not support tool calling should remain usable for ordinary conversation but shall not be treated as having inspected or changed the document through tools.
 - PDF/image import should report when the configured model lacks image-input support and should not insert a partial transcription.

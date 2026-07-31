@@ -100,7 +100,9 @@ import AiEditPreviewDialog from "./components/ai/AiEditPreviewDialog";
 import AiChatPanel from "./components/ai/AiChatPanel";
 import AiNotice from "./components/ai/AiNotice";
 import { isImageUnsupportedError, resolveActiveProvider, runAiChat } from "./lib/ai/client";
+import { validateContentOrganizationOutput } from "./lib/ai/contentOrganization";
 import {
+  buildContentOrganizationPrompt,
   buildDocumentImportPrompt,
   buildSelectionPrompt,
   describeSelectionAction
@@ -334,10 +336,15 @@ type EditorSelectionSnapshot = {
 };
 
 type PendingAiEdit = {
+  target: "selection" | "document";
   actionLabel: string;
   originalText: string;
   proposedText: string;
 };
+
+type PendingAiApply =
+  | { kind: "selection"; snapshot: EditorSelectionSnapshot; proposedText: string }
+  | { kind: "document"; originalMarkdown: string; proposedText: string };
 
 type AiNoticeState = {
   message: string;
@@ -548,9 +555,7 @@ function App() {
   // change of opening the AI menu. `pendingAiApplyRef` carries the snapshot + proposed text from the
   // preview dialog's accept handler to the deferred apply.
   const editorSelectionSnapshotRef = useRef<EditorSelectionSnapshot | null>(null);
-  const pendingAiApplyRef = useRef<{ snapshot: EditorSelectionSnapshot; proposedText: string } | null>(
-    null
-  );
+  const pendingAiApplyRef = useRef<PendingAiApply | null>(null);
   const outlineHeadingsRef = useRef<OutlineHeading[]>([]);
   const menuHandlersRef = useRef({
     createNewDocument,
@@ -619,6 +624,7 @@ function App() {
       })),
     copyDocumentAsHtml,
     runSelectionAiAction,
+    runContentOrganization,
     runDocumentImport
   });
   const appShellClassName = window.nexus?.platform === "win32" ? "app-shell app-shell-windows" : "app-shell";
@@ -866,6 +872,7 @@ function App() {
       })),
     copyDocumentAsHtml,
     runSelectionAiAction,
+    runContentOrganization,
     runDocumentImport
   };
 
@@ -1880,8 +1887,9 @@ function App() {
         return;
       }
 
-      pendingAiApplyRef.current = { snapshot, proposedText };
+      pendingAiApplyRef.current = { kind: "selection", snapshot, proposedText };
       setPendingAiEdit({
+        target: "selection",
         actionLabel: describeSelectionAction(action, options),
         originalText: snapshot.text,
         proposedText
@@ -1915,6 +1923,36 @@ function App() {
       return;
     }
 
+    if (pending.kind === "document") {
+      if (!areMarkdownBuffersEquivalent(getCurrentMarkdown(), pending.originalMarkdown)) {
+        setAiNotice({
+          message: "The document changed while the proposal was open. Run Content Organization again to avoid overwriting those edits.",
+          needsProvider: false
+        });
+        return;
+      }
+
+      const sourceView = editorSurfaceRef.current
+        ? getSourceEditorView(editorSurfaceRef.current)
+        : null;
+      if (currentViewModeRef.current === "source" && sourceView) {
+        sourceView.dispatch({
+          changes: {
+            from: 0,
+            to: sourceView.state.doc.length,
+            insert: pending.proposedText
+          }
+        });
+        setMarkdown(sourceView.state.doc.toString());
+        return;
+      }
+
+      beginProgrammaticMarkdownChange(pending.proposedText);
+      editorRef.current?.setMarkdown(pending.proposedText);
+      setMarkdown(pending.proposedText);
+      return;
+    }
+
     const { snapshot, proposedText } = pending;
 
     // Source mode: replace the exact captured character range in the CodeMirror buffer. This is
@@ -1942,6 +1980,86 @@ function App() {
         setMarkdown(getCurrentMarkdown());
       });
     });
+  }
+
+  // Organize the complete current document, then require explicit review before replacing it. The
+  // original Markdown is retained with the pending proposal so edits made while the request or
+  // preview is open can never be overwritten silently.
+  async function runContentOrganization() {
+    const originalMarkdown = getCurrentMarkdown();
+    if (!originalMarkdown.trim()) {
+      setAiNotice({
+        message: "Add some content to the document before running Content Organization.",
+        needsProvider: false
+      });
+      return;
+    }
+
+    if (!resolveActiveProvider(settings.ai)) {
+      setAiNotice({
+        message: "No AI provider is enabled yet. Open AI ▸ AI Providers… to set one up.",
+        needsProvider: true
+      });
+      return;
+    }
+
+    setAiNotice(null);
+    setAiBusy(true);
+    try {
+      const prompt = buildContentOrganizationPrompt(originalMarkdown);
+      const result = await runAiChat({
+        ai: settings.ai,
+        profileName,
+        system: prompt.system,
+        maxTokens: 12000,
+        messages: [{ role: "user", content: prompt.user }]
+      });
+
+      if (!result.ok) {
+        setAiNotice({ message: result.error, needsProvider: false });
+        return;
+      }
+
+      const proposedText = result.text.trim();
+      if (!proposedText) {
+        setAiNotice({
+          message: "The model returned an empty document. The current document was not changed.",
+          needsProvider: false
+        });
+        return;
+      }
+
+      const validation = validateContentOrganizationOutput(originalMarkdown, proposedText);
+      if (!validation.ok) {
+        setAiNotice({
+          message: `The model changed protected ${validation.changedKinds.join(
+            ", "
+          )}. The proposal was discarded and the current document was not changed.`,
+          needsProvider: false
+        });
+        return;
+      }
+
+      if (areMarkdownBuffersEquivalent(originalMarkdown, proposedText)) {
+        setAiNotice({
+          message: "Content Organization found no changes to propose.",
+          needsProvider: false
+        });
+        return;
+      }
+
+      pendingAiApplyRef.current = { kind: "document", originalMarkdown, proposedText };
+      setPendingAiEdit({
+        target: "document",
+        actionLabel: "Content Organization",
+        originalText: originalMarkdown,
+        proposedText
+      });
+    } catch {
+      setAiNotice({ message: "The AI request failed unexpectedly.", needsProvider: false });
+    } finally {
+      setAiBusy(false);
+    }
   }
 
   // Capture where transcribed Markdown should land *before* the file picker steals editor focus.
@@ -2045,7 +2163,7 @@ function App() {
         return;
       }
 
-      pendingAiApplyRef.current = { snapshot: insertAt, proposedText };
+      pendingAiApplyRef.current = { kind: "selection", snapshot: insertAt, proposedText };
       applyPendingAiEdit();
       if (picked.warnings.length > 0) {
         setAiNotice({ message: picked.warnings.join(" "), needsProvider: false });
@@ -2673,6 +2791,9 @@ function App() {
           void h.runSelectionAiAction(payload.action, payload.options);
         }
         break;
+      case "contentOrganization":
+        void h.runContentOrganization();
+        break;
       case "documentImport":
         void h.runDocumentImport();
         break;
@@ -3078,6 +3199,7 @@ function App() {
       {pendingAiEdit ? (
         <AiEditPreviewDialog
           open
+          target={pendingAiEdit.target}
           actionLabel={pendingAiEdit.actionLabel}
           originalText={pendingAiEdit.originalText}
           proposedText={pendingAiEdit.proposedText}

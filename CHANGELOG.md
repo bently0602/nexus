@@ -9,11 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- T_145: Kept the SQL data-model diagram fixed while long table and column controls scroll inside
+  the modal's right-hand inspector, including when the bounded SQL preview is open.
+
 - Kept the JavaScript wrapper for the native PDF canvas dependency inside `app.asar` while
   unpacking only its platform binding, preventing late PDF imports in the Windows portable build
   from failing when the wrapper is unavailable in the temporary extraction directory.
 
 ### Added
+
+- T_144: Added AI Content Organization for conservative whole-document restructuring, Markdown and
+  extraction cleanup, and obvious page-number/header/footer removal. Proposals receive protected
+  Markdown validation and a side-by-side full-document review; failures, discards, invalid output,
+  and stale proposals leave the document unchanged.
 
 - T_142: Saved AI chat transcript and agent history locally for saved documents in opaque,
   per-profile user-data files. Clear Conversation deletes the active file, and AI Provider settings

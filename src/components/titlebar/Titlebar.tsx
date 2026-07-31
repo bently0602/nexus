@@ -209,6 +209,9 @@ function AppMenuBar({
             </MenubarSubContent>
           </MenubarSub>
           <MenubarSeparator />
+          <MenubarItem onSelect={() => dispatchMenuAction("contentOrganization")}>
+            Content Organization
+          </MenubarItem>
           <MenubarItem onSelect={() => onAiDocumentImport()}>Import PDF or Images…</MenubarItem>
         </MenubarContent>
       </MenubarMenu>

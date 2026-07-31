@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
+  AI_CONTENT_ORGANIZATION_SYSTEM,
   AI_SELECTION_ACTIONS,
   AI_SELECTION_BASE_SYSTEM,
   buildChatSystemPrompt,
+  buildContentOrganizationPrompt,
   buildDocumentImportPrompt,
   buildSelectionPrompt,
   describeSelectionAction
@@ -42,6 +44,31 @@ describe("buildDocumentImportPrompt", () => {
       expect(prompt.system).toContain("inline code span prefixed with `math:`");
       expect(prompt.system).toContain("normalized bounding-box marker");
       expect(prompt.user).toContain("ordered sources");
+  });
+});
+
+describe("buildContentOrganizationPrompt", () => {
+  it("includes the complete document and forbids semantic edits", () => {
+    const markdown = "---\ntitle: Notes\n---\n\n# Second\n\nBody";
+    const prompt = buildContentOrganizationPrompt(markdown);
+
+    expect(prompt.system).toBe(AI_CONTENT_ORGANIZATION_SYSTEM);
+    expect(prompt.user).toContain(markdown);
+    expect(prompt.system).toContain("without adding, removing, summarizing, paraphrasing");
+    expect(prompt.system).toContain("standalone page numbers");
+    expect(prompt.system).toContain("repeated page headers or footers");
+  });
+
+  it("protects Markdown and Nexus payloads while retaining ambiguous content", () => {
+    const prompt = buildContentOrganizationPrompt("body");
+
+    expect(prompt.system).toContain("If an item might be meaningful content, retain it");
+    expect(prompt.system).toContain("YAML frontmatter");
+    expect(prompt.system).toContain("image data URLs");
+    expect(prompt.system).toContain("fenced code");
+    expect(prompt.system).toContain("math, tables, footnotes, directives");
+    expect(prompt.system).toContain("Nexus embedded-content fences");
+    expect(prompt.system).toContain("complete replacement Markdown document");
   });
 });
 

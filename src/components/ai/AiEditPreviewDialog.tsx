@@ -10,6 +10,7 @@ import {
 
 type AiEditPreviewDialogProps = {
   open: boolean;
+  target: "selection" | "document";
   actionLabel: string;
   originalText: string;
   proposedText: string;
@@ -18,12 +19,12 @@ type AiEditPreviewDialogProps = {
 };
 
 /**
- * Shows the model's proposed replacement for the current selection next to the original, so the user
- * approves the change before it touches the document. Accepting routes back to App, which applies the
- * edit (CodeMirror dispatch in source mode, `insertMarkdown` over the restored selection in rich-text).
+ * Shows a proposed selection or whole-document replacement next to the original, so the user
+ * approves it before it touches the editor. App owns the target-specific replacement transaction.
  */
 function AiEditPreviewDialog({
   open,
+  target,
   actionLabel,
   originalText,
   proposedText,
@@ -49,7 +50,9 @@ function AiEditPreviewDialog({
         <DialogHeader>
           <DialogTitle>{actionLabel}</DialogTitle>
           <DialogDescription>
-            Review the suggested replacement for your selection, then accept or discard it.
+            {target === "document"
+              ? "Review the organized document, then replace the current document or discard the proposal."
+              : "Review the suggested replacement for your selection, then accept or discard it."}
           </DialogDescription>
         </DialogHeader>
 
@@ -72,7 +75,7 @@ function AiEditPreviewDialog({
             Discard
           </Button>
           <Button type="button" onClick={onAccept}>
-            Replace selection
+            {target === "document" ? "Replace document" : "Replace selection"}
           </Button>
         </DialogFooter>
       </DialogContent>

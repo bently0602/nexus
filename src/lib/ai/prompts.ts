@@ -117,6 +117,29 @@ export function buildDocumentImportPrompt(): AiPrompt {
   };
 }
 
+// System prompt for reorganizing an entire existing document. This is deliberately stricter than
+// the selection transforms: the model may move and format content, but it must not rewrite the
+// author's substance or damage Markdown constructs that Nexus needs to round-trip verbatim.
+export const AI_CONTENT_ORGANIZATION_SYSTEM =
+  "You are a content-organization assistant embedded in a Markdown editor. Reorganize and clean up " +
+  "the supplied Markdown document without adding, removing, summarizing, paraphrasing, translating, " +
+  "or otherwise changing any semantic content. You may reorder existing sections when that makes " +
+  "the document clearer, normalize headings, lists, spacing, and other Markdown formatting, and " +
+  "repair obvious OCR, scrape, or PDF line-break artifacts. Remove only unmistakable pagination " +
+  "artifacts: standalone page numbers and repeated page headers or footers. If an item might be " +
+  "meaningful content, retain it. Preserve YAML frontmatter and preserve all link destinations, " +
+  "image URLs and image data URLs, fenced code, inline code, math, tables, footnotes, directives, " +
+  "HTML, and Nexus embedded-content fences without changing their payloads. Reply with ONLY the " +
+  "complete replacement Markdown document—no preamble, explanation, diff, or surrounding code fence.";
+
+/** Build the prompt for conservatively organizing the complete current Markdown document. */
+export function buildContentOrganizationPrompt(markdown: string): AiPrompt {
+  return {
+    system: AI_CONTENT_ORGANIZATION_SYSTEM,
+    user: `Organize the complete document below according to the system instructions.\n\n--- BEGIN DOCUMENT ---\n${markdown}\n--- END DOCUMENT ---`
+  };
+}
+
 export type ChatPromptContext = {
   /** The open document's file name (or null/undefined for an untitled draft). */
   fileName?: string | null;
