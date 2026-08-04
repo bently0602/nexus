@@ -2607,7 +2607,13 @@ async function renderMarkdownExportHtml(markdown, currentPath, options = {}) {
 
   const marked = new Marked({
     async: true,
-    breaks: false,
+    // Soft line breaks become <br>, matching what the editor shows. MDXEditor keeps a bare newline
+    // inside a paragraph as a literal "\n" in one Lexical text node and paints it as a line break
+    // (its contenteditable is `white-space: pre-wrap`), so the CommonMark reading — soft break is a
+    // space — would silently reflow those lines into one on export. Exports are WYSIWYG snapshots of
+    // the canvas, so the canvas wins over CommonMark here. The cost is that a hand-wrapped paragraph
+    // in a source file exports with its wrapping baked in instead of reflowing.
+    breaks: true,
     extensions: [createMarkedHighlightExtension()],
     gfm: true,
     renderer,
