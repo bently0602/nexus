@@ -38,6 +38,7 @@ export type TitlebarProps = {
   dispatchMenuAction: (action: NexusMenuAction) => void;
   onAiSelectionAction: (action: SelectionActionId, options?: SelectionActionOptions) => void;
   onAiDocumentImport: () => void;
+  onOpenRecentFile: (filePath: string) => void;
 };
 
 type AppMenuBarProps = {
@@ -53,7 +54,39 @@ type AppMenuBarProps = {
   dispatchMenuAction: (action: NexusMenuAction) => void;
   onAiSelectionAction: (action: SelectionActionId, options?: SelectionActionOptions) => void;
   onAiDocumentImport: () => void;
+  onOpenRecentFile: (filePath: string) => void;
 };
+
+// Display name for a recents entry. The renderer has no node:path, and the stored entries are
+// absolute paths from the main process, so split on either separator.
+export function getFileNameFromPath(filePath: string) {
+  const segments = filePath.split(/[\\/]/);
+  return segments[segments.length - 1] || filePath;
+}
+
+// Mirrors the native menu's recents list: seeded once, then kept live by the main process, which
+// broadcasts whenever a file is opened, saved-as, or dropped from the list.
+function useRecentFiles() {
+  const [recentFiles, setRecentFiles] = React.useState<string[]>([]);
+
+  React.useEffect(() => {
+    let active = true;
+    void window.nexus?.listRecentFiles().then((files) => {
+      if (active) {
+        setRecentFiles(files);
+      }
+    });
+    const unsubscribe = window.nexus?.onRecentFilesChange((files) => {
+      setRecentFiles(files);
+    });
+    return () => {
+      active = false;
+      unsubscribe?.();
+    };
+  }, []);
+
+  return recentFiles;
+}
 
 function AppMenuBar({
   canEditFrontmatter,
@@ -67,9 +100,11 @@ function AppMenuBar({
   paperViewEnabled,
   dispatchMenuAction,
   onAiSelectionAction,
-  onAiDocumentImport
+  onAiDocumentImport,
+  onOpenRecentFile
 }: AppMenuBarProps) {
   const nexus = window.nexus;
+  const recentFiles = useRecentFiles();
 
   return (
     <Menubar className="nexus-titlebar-menu">
@@ -90,6 +125,30 @@ function AppMenuBar({
             Open
             <MenubarShortcut>Ctrl+O</MenubarShortcut>
           </MenubarItem>
+          <MenubarSub>
+            <MenubarSubTrigger>Open Recent</MenubarSubTrigger>
+            <MenubarSubContent>
+              {recentFiles.length === 0 ? (
+                <MenubarItem disabled>No Recent Files</MenubarItem>
+              ) : (
+                <>
+                  {recentFiles.map((recentPath) => (
+                    <MenubarItem
+                      key={recentPath}
+                      onSelect={() => onOpenRecentFile(recentPath)}
+                      title={recentPath}
+                    >
+                      {getFileNameFromPath(recentPath)}
+                    </MenubarItem>
+                  ))}
+                  <MenubarSeparator />
+                  <MenubarItem onSelect={() => void nexus?.clearRecentFiles()}>
+                    Clear Recent
+                  </MenubarItem>
+                </>
+              )}
+            </MenubarSubContent>
+          </MenubarSub>
           <MenubarItem onSelect={() => dispatchMenuAction("loadDemo")}>
             Load Demo Document
           </MenubarItem>
@@ -370,7 +429,8 @@ export function Titlebar({
   paperViewEnabled,
   dispatchMenuAction,
   onAiSelectionAction,
-  onAiDocumentImport
+  onAiDocumentImport,
+  onOpenRecentFile
 }: TitlebarProps) {
   const platform = window.nexus?.platform;
   const isMac = platform === "darwin";
@@ -386,6 +446,7 @@ export function Titlebar({
             dispatchMenuAction={dispatchMenuAction}
             onAiSelectionAction={onAiSelectionAction}
             onAiDocumentImport={onAiDocumentImport}
+            onOpenRecentFile={onOpenRecentFile}
             outlineVisible={outlineVisible}
             pageOrientation={pageOrientation}
             paperViewEnabled={paperViewEnabled}

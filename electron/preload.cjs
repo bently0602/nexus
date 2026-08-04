@@ -2,6 +2,7 @@ const { contextBridge, ipcRenderer, webUtils } = require("electron");
 
 const menuActionChannel = "menu:action";
 const openRecentChannel = "menu:open-recent";
+const recentFilesChangedChannel = "recent:changed";
 const closeRequestChannel = "app:request-close";
 const externalFileChangeChannel = "file:external-change";
 const exportProgressChannel = "export:progress";
@@ -24,6 +25,11 @@ contextBridge.exposeInMainWorld("nexus", {
     const listener = (_event, filePath) => callback(filePath);
     ipcRenderer.on(openRecentChannel, listener);
     return () => ipcRenderer.removeListener(openRecentChannel, listener);
+  },
+  onRecentFilesChange(callback) {
+    const listener = (_event, filePaths) => callback(filePaths);
+    ipcRenderer.on(recentFilesChangedChannel, listener);
+    return () => ipcRenderer.removeListener(recentFilesChangedChannel, listener);
   },
   onCloseRequest(callback) {
     const listener = () => callback();
@@ -63,6 +69,12 @@ contextBridge.exposeInMainWorld("nexus", {
   },
   openRecentFile(filePath) {
     return ipcRenderer.invoke("recent:open", filePath);
+  },
+  listRecentFiles() {
+    return ipcRenderer.invoke("recent:list");
+  },
+  clearRecentFiles() {
+    return ipcRenderer.invoke("recent:clear");
   },
   // Resolve the absolute path of a File dropped onto the window. Electron removed File.path, so the
   // main-world code cannot read it directly; webUtils.getPathForFile is the supported replacement.

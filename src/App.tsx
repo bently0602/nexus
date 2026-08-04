@@ -2904,6 +2904,7 @@ function App() {
         dispatchMenuAction={dispatchMenuAction}
         onAiSelectionAction={runSelectionAiAction}
         onAiDocumentImport={runDocumentImport}
+        onOpenRecentFile={(recentPath) => void openRecentFile(recentPath)}
         fileName={titlebarFileName}
         filePath={filePath ?? null}
         isDirty={isDirty}

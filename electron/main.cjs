@@ -3763,6 +3763,16 @@ async function persistRecentFiles() {
   }
 }
 
+// The in-app titlebar menu renders its own "Open Recent" submenu, so every window needs to hear
+// about changes to the list — not just the native menu, which is rebuilt in the same places.
+function notifyRecentFilesChanged() {
+  for (const window of BrowserWindow.getAllWindows()) {
+    if (!window.isDestroyed()) {
+      window.webContents.send("recent:changed", recentFiles.slice());
+    }
+  }
+}
+
 function addRecentFile(filePath) {
   if (typeof filePath !== "string" || filePath.length === 0) {
     return;
@@ -3779,6 +3789,7 @@ function addRecentFile(filePath) {
   app.addRecentDocument(next[0]);
   void persistRecentFiles();
   buildMenu();
+  notifyRecentFilesChanged();
 }
 
 function removeRecentFile(filePath) {
@@ -3790,6 +3801,7 @@ function removeRecentFile(filePath) {
   recentFiles = next;
   void persistRecentFiles();
   buildMenu();
+  notifyRecentFilesChanged();
 }
 
 function clearRecentFiles() {
@@ -3801,6 +3813,7 @@ function clearRecentFiles() {
   app.clearRecentDocuments();
   void persistRecentFiles();
   buildMenu();
+  notifyRecentFilesChanged();
 }
 
 function sendOpenRecentFile(filePath) {
@@ -4339,6 +4352,13 @@ ipcMain.handle("file:read", async (event, filePath) => {
   const result = await readMarkdownFile(filePath);
   await refreshWatchedFileSignature(event.sender.id, result.filePath);
   return result;
+});
+
+ipcMain.handle("recent:list", () => recentFiles.slice());
+
+ipcMain.handle("recent:clear", () => {
+  clearRecentFiles();
+  return recentFiles.slice();
 });
 
 ipcMain.handle("recent:open", async (event, filePath) => {

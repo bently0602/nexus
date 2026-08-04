@@ -332,6 +332,7 @@ declare global {
         callback: (action: NexusMenuAction, payload?: AiSelectionMenuPayload) => void
       ): () => void;
       onOpenRecentFile(callback: (filePath: string) => void): () => void;
+      onRecentFilesChange(callback: (filePaths: string[]) => void): () => void;
       onCloseRequest(callback: () => void): () => void;
       onExternalFileChange(callback: (event: ExternalFileChangeEvent) => void): () => void;
       onExportProgress(callback: (event: ExportProgressEvent) => void): () => void;
@@ -347,6 +348,8 @@ declare global {
       getProfileName(): Promise<string>;
       openMarkdownFile(): Promise<OpenMarkdownResult>;
       openRecentFile(filePath: string): Promise<OpenMarkdownResult>;
+      listRecentFiles(): Promise<string[]>;
+      clearRecentFiles(): Promise<string[]>;
       getPathForFile(file: File): string;
       getInitialOpenFile(): Promise<OpenMarkdownResult>;
       readWatchedMarkdownFile(filePath: string): Promise<OpenMarkdownResult>;
